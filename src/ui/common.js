@@ -20,10 +20,20 @@ export function ReadOnlyBadge() {
   return html`<span class="badge pill st-readonly"><${Icon} name="lock" size=${13} />열람 전용</span>`;
 }
 
-/** 분류 기호. 분기별은 글꼴에 따라 모양이 달라지지 않도록 1/4원을 직접 그린다 */
+/**
+ * 분류 기호. 분기별·반기별은 글꼴에 따라 모양이 달라지지 않도록 직접 그린다:
+ * 같은 원 테두리 안에 분기별은 1/4, 반기별은 1/2을 채운다.
+ */
+const PIE = {
+  quarterly: 'M6 6V1.6A4.4 4.4 0 0 1 10.4 6Z',
+  semiannual: 'M6 1.6A4.4 4.4 0 0 0 6 10.4Z',
+};
 export function CatSym({ cat }) {
-  if (cat === 'quarterly') {
-    return html`<svg class="sym-svg" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 10.5V2.5a8 8 0 0 1 8 8Z" fill="currentColor" /></svg>`;
+  if (PIE[cat]) {
+    return html`<svg class="sym-svg" viewBox="0 0 12 12" aria-hidden="true">
+      <circle cx="6" cy="6" r="4.9" fill="none" stroke="currentColor" stroke-width="1.3" />
+      <path d=${PIE[cat]} fill="currentColor" />
+    </svg>`;
   }
   return CATS[cat]?.sym || '';
 }
