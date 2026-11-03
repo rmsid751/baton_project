@@ -4,8 +4,8 @@ import { countBy, mode, monthsBetween, servedMonthsOfYear, uid } from './util.js
 
 export const CATS = {
   routine: { label: '월별 루틴', short: '월별', sym: '■' },
-  quarterly: { label: '분기별 루틴', short: '분기별', sym: '◔' }, // 화면에서는 CatSym이 1/4원을 그림
-  semiannual: { label: '반기별 루틴', short: '반기별', sym: '◐' },
+  quarterly: { label: '분기별 루틴', short: '분기별', sym: '◔' }, // 화면에서는 CatSym이 원 테두리 + 1/4을 그림
+  semiannual: { label: '반기별 루틴', short: '반기별', sym: '◐' }, // 화면에서는 CatSym이 원 테두리 + 1/2을 그림
   event: { label: '연간·특별 이벤트', short: '이벤트', sym: '▲' },
   special: { label: '특이사항', short: '특이사항', sym: '◆' },
 };
@@ -81,6 +81,12 @@ export function periodText(category, months, week) {
   return list;
 }
 
+/** 특이사항 시기: 한 번 있었던 일이라 연·월로 적는다 (예: 2026년 2월) */
+export function specialPeriod(...dates) {
+  const yms = [...new Set(dates.map((d) => d.slice(0, 7)))].sort();
+  return yms.map((ym) => `${+ym.slice(0, 4)}년 ${+ym.slice(5, 7)}월`).join(', ');
+}
+
 const catOrderIndex = (c) => CAT_ORDER.indexOf(c);
 export function sortItems(items) {
   return [...items].sort((a, b) => {
@@ -94,29 +100,32 @@ export function sortItems(items) {
   });
 }
 
-function describe(group, category, period, monthCount) {
-  const docs = [...group.docs].sort((a, b) => (a.date < b.date ? 1 : -1));
-  const types = [...countBy(docs.map((d) => d.type || docType(d.name || d.title)))]
-    .sort((a, b) => b[1] - a[1])
-    .map(([t, n]) => `${t} ${n}`)
-    .join(' · ');
-  const latest = docs[0];
-  const head =
-    category === 'special'
-      ? `${period}에 있었던 특이사항입니다.`
-      : category === 'event'
-        ? `${period}에 처리하는 업무입니다.`
-        : `${period}에 반복하는 업무입니다.`;
-  let text = `${head} 근무기간 중 ${monthCount}개월에 걸쳐 문서 ${docs.length}건(${types})이 확인되었습니다.`;
-  if (latest) text += ` 최근 문서는 '${latest.name || latest.title}'입니다.`;
-  return text;
+/**
+ * 역대 인계서에 같은 업무가 없을 때의 임시 설명.
+ * 자동 작성 단계에서 AI가 모든 항목의 설명을 다시 쓴다(descAuto): 이번 근거 문서 + (있으면) 이전 담당자 설명.
+ * AI를 못 부르면 이전 담당자 설명, 그것도 없으면 이 문장이 남는다. 근거 통계는 카드의 근거 문서 줄에 따로 보여 준다.
+ */
+function describe(category, period) {
+  if (category === 'special') return `${period}에 있었던 특이사항입니다.`;
+  if (category === 'event') return `${period}에 처리하는 업무입니다.`;
+  return `${period}에 반복하는 업무입니다.`;
+}
+
+/** 역대 인계서(최근 담당자부터)에서 같은 업무의 설명을 찾는다 */
+function inheritedDesc(history, key) {
+  for (const h of history) {
+    const it = h.items.find((x) => x.key === key && x.desc);
+    if (it) return { desc: it.desc, from: `${h.person.rank} ${h.person.name}` };
+  }
+  return null;
 }
 
 /**
  * 선택한 업무 폴더의 파일 + 근무기간 내 온나라 문서를 분석해 인계서 항목을 만든다.
  * 관계부서는 온나라 문서의 협조·수신 부서로 미리 채운다 (인계자가 고칠 수 있음).
+ * 설명은 역대 인계서(history, 최근 담당자부터)에 같은 업무가 있으면 그 설명을 이어받는다.
  */
-export function analyze({ files, onnara, folderIdxs, start, end }) {
+export function analyze({ files, onnara, folderIdxs, start, end, history = [] }) {
   const selected = files.filter((f) => folderIdxs.includes(f.folder));
   const excluded = selected.filter((f) => isExcluded(f.name));
   const included = selected.filter((f) => !isExcluded(f.name));
@@ -147,7 +156,8 @@ export function analyze({ files, onnara, folderIdxs, start, end }) {
     const category = classify({ special, ratio: ymSet.size / totalMonths, moy });
     const months = category === 'routine' ? [...served].sort((a, b) => a - b) : moy;
     const week = category === 'routine' ? mode(g.docs.map((d) => weekLabel(+d.date.slice(8, 10)))) : null;
-    const period = periodText(category, months, week);
+    const period = category === 'special' ? specialPeriod(...g.docs.map((d) => d.date)) : periodText(category, months, week);
+    const inherited = inheritedDesc(history, g.key);
     items.push({
       id: uid('it'),
       key: g.key,
@@ -155,7 +165,9 @@ export function analyze({ files, onnara, folderIdxs, start, end }) {
       title: g.title,
       months,
       period,
-      desc: describe(g, category, period, ymSet.size),
+      desc: inherited ? inherited.desc : describe(category, period),
+      descAuto: true, // 자동 작성 단계에서 AI가 다시 쓴다 (끝나면 지움)
+      descRef: inherited, // AI에게 줄 이전 담당자 설명 { desc, from } (끝나면 지움)
       depts: [...new Set(g.docs.flatMap((d) => d.coop || []))],
       docIds: [...g.docs].sort((a, b) => (a.date < b.date ? 1 : -1)).map((d) => d.id),
       important: false,

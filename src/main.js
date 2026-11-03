@@ -19,7 +19,7 @@ function App() {
   return html`<div class="app">
     <${Atmos} soft=${inApp} />
     ${inApp ? html`<${TopBar} />` : html`<${LandingBar} />`}
-    <main class="page page-enter" key=${inApp ? `one-${s.session.personId}` : 'landing'}>
+    <main class="page page-enter" key=${inApp ? `one-${s.session.personId}-${s.session.positionId}` : 'landing'}>
       ${inApp ? html`<${OnePage} />` : html`<${Landing} />`}
     </main>
     <${NotifPanel} />

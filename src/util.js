@@ -14,9 +14,9 @@ export const dot = (s) => (s ? s.slice(0, 10).replaceAll('-', '.') : '');
 export const fmtStamp = (s) => (s ? `${dot(s)} ${s.slice(11, 16)}` : '');
 export const periodLabel = (start, end) => `${start.slice(0, 4)}.${start.slice(5, 7)}~${end.slice(0, 4)}.${end.slice(5, 7)}`;
 
-/** 근무 개월 수 (시작월~종료월 차이) */
+/** 근무 개월 수: 근무기간이 걸친 달 수 (2026-01-05~2026-12-28 → 12) */
 export function monthsBetween(start, end) {
-  const n = (+end.slice(0, 4) - +start.slice(0, 4)) * 12 + (+end.slice(5, 7) - +start.slice(5, 7));
+  const n = (+end.slice(0, 4) - +start.slice(0, 4)) * 12 + (+end.slice(5, 7) - +start.slice(5, 7)) + 1;
   return Math.max(n, 1);
 }
 

@@ -39,6 +39,7 @@ export default async function handler(req, res) {
   });
   let upstream = null;
   let lastStatus = 0;
+  let sawQuota = false; // 한 모델이라도 사용량 초과(429)였는지
   for (const model of models) {
     const r = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`,
@@ -46,10 +47,13 @@ export default async function handler(req, res) {
     );
     if (r.ok && r.body) { upstream = r; break; }
     lastStatus = r.status;
+    if (r.status === 429) sawQuota = true;
     if (![404, 429, 500, 503].includes(r.status)) break;
   }
   if (!upstream) {
-    res.status(502).json({ error: `Gemini ${lastStatus}` });
+    // 모든 모델이 실패했고 그중 사용량 초과가 있으면 429로 알려 화면에서 '사용량 초과' 문구를 보여 준다
+    if (sawQuota) res.status(429).json({ error: 'quota' });
+    else res.status(502).json({ error: `Gemini ${lastStatus}` });
     return;
   }
 

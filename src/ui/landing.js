@@ -1,9 +1,10 @@
 // 랜딩 페이지 — 비주얼 배너(레이어 일러스트) + 역할 카드 3개
 import { html, useEffect, useRef, useState } from '../lib.js';
 import { Icon } from '../icons.js';
-import { PEOPLE, ROLES } from '../data/seed.js';
-import { enter } from '../store.js';
-import { cx } from '../util.js';
+import { PEOPLE, ROLES, giverOf, positionsOfReviewer } from '../data/seed.js';
+import { enter, personLabel, useStore } from '../store.js';
+import { cx, dot } from '../util.js';
+import { StatusBadge } from './common.js';
 
 // layout.json 기준 위치(%). 서비스명 자리를 위해 차트는 오른쪽 위로 옮겼다.
 const LAYERS = [
@@ -67,8 +68,29 @@ function Scene({ hop }) {
   </div>`;
 }
 
+/** 입회자: 인물을 고른 뒤 입회할 직책을 고른다 (부서원이 많으면 직책이 여러 개) */
+function PositionStep({ person, onBack, isOn }) {
+  const s = useStore();
+  const list = positionsOfReviewer(person.id);
+  return html`<div class="pos-step fade-in">
+    <p class="eyebrow">${person.rank} ${person.name} · 입회할 직책 선택</p>
+    <div class="people-list">
+      ${list.map((p) => {
+        const h = s.handovers[p.id];
+        return html`<button key=${p.id} class="person-chip pos-chip" tabindex=${isOn ? 0 : -1} onClick=${() => enter('reviewer', person.id, p.id)}>
+          <span class="pos-main"><strong>${p.title}</strong><span class="person-pos">인계자 ${personLabel(giverOf(p.id))} · 인사이동 ${dot(h.moveDate)}</span></span>
+          <${StatusBadge} status=${h.status} />
+          <${Icon} name="arrowRight" size=${16} />
+        </button>`;
+      })}
+    </div>
+    <button class="btn-text back" tabindex=${isOn ? 0 : -1} onClick=${onBack}><${Icon} name="arrowLeft" size=${16} /> 인물 다시 선택</button>
+  </div>`;
+}
+
 export function Landing() {
   const [active, setActive] = useState(null);
+  const [pick, setPick] = useState(null); // 입회자 인물을 고르면 직책 선택 단계로
   const [hop, setHop] = useState(null);
   const hopTimer = useRef(0);
 
@@ -100,7 +122,7 @@ export function Landing() {
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, [active]);
+  }, [active, pick]);
 
   return html`<section class="landing">
     <div class="hero">
@@ -118,7 +140,7 @@ export function Landing() {
         const people = PEOPLE.filter((p) => p.role === role);
         return html`<div key=${role} class=${cx('role-card glass', `tone-${meta.tone}`, isOn && 'open', active && !isOn && 'dim')}
             style=${`--lift:${isOn ? lift : 0}px`} onMouseEnter=${() => bounce(role)}>
-          <button class="role-head" onClick=${() => setActive(isOn ? null : role)} aria-expanded=${isOn}>
+          <button class="role-head" onClick=${() => { setActive(isOn ? null : role); setPick(null); }} aria-expanded=${isOn}>
             <span class="role-icon"><${Icon} name=${meta.icon} size=${22} /></span>
             <span class="role-txt">
               <span class="role-name">${r.label}</span>
@@ -128,13 +150,15 @@ export function Landing() {
           </button>
           <div class="role-people" aria-hidden=${!isOn}>
             <div class="people-inner">
-              <p class="eyebrow">테스트 인물 선택</p>
-              <div class="people-list">
-                ${people.map((p) => html`<button key=${p.id} class="person-chip" tabindex=${isOn ? 0 : -1} onClick=${() => enter(role, p.id)}>
-                  <span class="rank">${p.rank}</span> ${p.name}<span class="person-pos">${p.title}</span><${Icon} name="arrowRight" size=${16} />
-                </button>`)}
-              </div>
-              <button class="btn-text back" tabindex=${isOn ? 0 : -1} onClick=${() => setActive(null)}><${Icon} name="arrowLeft" size=${16} /> 다른 역할</button>
+              ${role === 'reviewer' && pick && isOn
+                ? html`<${PositionStep} person=${people.find((p) => p.id === pick)} isOn=${isOn} onBack=${() => setPick(null)} />`
+                : html`<p class="eyebrow">테스트 인물 선택</p>
+                  <div class="people-list">
+                    ${people.map((p) => html`<button key=${p.id} class="person-chip" tabindex=${isOn ? 0 : -1} onClick=${() => (role === 'reviewer' ? setPick(p.id) : enter(role, p.id))}>
+                      <span class="rank">${p.rank}</span> ${p.name}<span class="person-pos">${p.title}</span><${Icon} name="arrowRight" size=${16} />
+                    </button>`)}
+                  </div>
+                  <button class="btn-text back" tabindex=${isOn ? 0 : -1} onClick=${() => setActive(null)}><${Icon} name="arrowLeft" size=${16} /> 다른 역할</button>`}
             </div>
           </div>
         </div>`;

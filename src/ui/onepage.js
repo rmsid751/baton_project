@@ -1,13 +1,13 @@
 // 인계서 원페이지 — 첫 화면(선택 탭·상태·요약 대시보드) → 스크롤하면 상세 영역
 import { html, useEffect, useMemo, useState } from '../lib.js';
 import { Icon } from '../icons.js';
-import { POSITION, giverOf } from '../data/seed.js';
+import { POSITION, giverOf, reviewerOf } from '../data/seed.js';
 import { aggregate, deptRows, itemFromRec, onnaraDeptCounts, personStats, recommend, sortItems } from '../engine.js';
 import {
   addItem, canAskPredecessor, getState, ignoreRec, isEditable, isReadOnly, isVisibleTo, openModal,
-  personLabel, setBriefing, setTab, setUI, toast, useStore, useUI, windowEnd,
+  personLabel, setBriefing, setTab, setUI, showsSnapshot, toast, useStore, useUI, viewItems, windowEnd,
 } from '../store.js';
-import { briefCacheKey, briefingInput, streamAI } from '../ai.js';
+import { AI_QUOTA_MSG, aiFailReason, briefCacheKey, briefingInput, streamAI } from '../ai.js';
 import { AIBadge, Empty, ReadOnlyBadge, RichLines, StatusBadge } from './common.js';
 import { CompareTable, DeptTable, Donut, FIT_QUERY, MonthlyChart, YearMap, useMedia } from './viz.js';
 import { CATS, CAT_ORDER } from '../engine.js';
@@ -19,7 +19,8 @@ export function buildViews(s) {
   const pos = POSITION[pid];
   const h = s.handovers[pid];
   const giver = giverOf(pid);
-  const approvedLog = [...h.log].reverse().find((l) => l.action === '결재');
+  const approvedLog = [...h.log].reverse().find((l) => l.action === '입회완료');
+  const snap = showsSnapshot(s.session.role, h);
   const current = {
     id: 'current',
     kind: 'person',
@@ -28,10 +29,11 @@ export function buildViews(s) {
     start: giver.start,
     end: giver.end,
     periodLabel: periodLabel(giver.start, giver.end),
-    items: h.items,
+    items: viewItems(s.session.role, h),
+    snapshot: snap,
     qa: s.qa.filter((q) => q.positionId === pid),
     docCounts: onnaraDeptCounts(pos.onnara, giver.start, giver.end),
-    briefing: h.briefing,
+    briefing: snap ? h.attachment.snapshot.briefing : h.briefing,
     approvedAt: h.status === 'approved' ? approvedLog?.at : null,
   };
   const prev = pos.history.map((hh) => ({
@@ -48,7 +50,7 @@ export function buildViews(s) {
     briefing: hh.briefing,
     approvedAt: hh.approvedAt,
   }));
-  const showCurrent = isVisibleTo(s.session.role, h) && h.items.length > 0;
+  const showCurrent = isVisibleTo(s.session.role, h) && current.items.length > 0;
   return { pos, h, current, prev, aggList: showCurrent ? [current, ...prev] : prev, showCurrent };
 }
 
@@ -74,23 +76,29 @@ function StatusBar({ s, h }) {
       <${StatusBadge} status=${h.status} />
       ${ro && html`<${ReadOnlyBadge} />`}
       <span class="sb-item"><span class="muted">인사이동일</span> <strong class="tnum">${dot(h.moveDate)}</strong></span>
-      <span class="sb-item"><span class="muted">전임자 질문 가능</span> <strong class="tnum">${h.firstSubmittedAt ? `${dot(h.firstSubmittedAt)}~${dot(windowEnd(h))}` : `상신 후 ~${dot(windowEnd(h))}`}</strong></span>
+      <span class="sb-item"><span class="muted">전임자 질문 가능</span> <strong class="tnum">${h.firstSubmittedAt ? `${dot(h.firstSubmittedAt)}~${dot(windowEnd(h))}` : `입회요청 후 ~${dot(windowEnd(h))}`}</strong></span>
       ${h.receiver && html`<span class="sb-item"><span class="muted">인수자</span> <strong>${h.receiver.rank} ${h.receiver.name}</strong></span>`}
       ${h.attachment && html`<button class="pdf-chip" onClick=${() => openModal({ type: 'pdf' })}
-          title=${`온나라 첨부 · ${h.attachment.filename} · ${h.attachment.pages}쪽 · ${fmtStamp(h.attachment.at)} 상신`}>
+          title=${`온나라 첨부 · ${h.attachment.filename} · ${h.attachment.pages}쪽 · ${fmtStamp(h.attachment.at)} 입회요청`}>
         <span class="pdf-ic sm">PDF</span>PDF 파일 보기
       </button>`}
     </div>
     <div class="sb-actions">
       ${role === 'giver' && !ro && h.status === 'draft' && html`
         <button class="btn-text" onClick=${() => openModal({ type: 'autowrite' })}><${Icon} name="refresh" size=${16} />다시 자동 작성</button>
-        <button class="btn primary" onClick=${() => openModal({ type: 'submit' })}><${Icon} name="send" size=${18} />작성완료 및 온나라 상신</button>`}
-      ${role === 'giver' && !ro && h.status === 'rejected' && html`<button class="btn primary" onClick=${() => openModal({ type: 'submit' })}><${Icon} name="send" size=${18} />수정 완료 및 재상신</button>`}
-      ${role === 'giver' && h.status === 'pending' && html`<span class="muted small lock-note"><${Icon} name="lock" size=${14} />결재대기 중에는 편집이 잠깁니다</span>`}
+        <button class="btn primary" onClick=${() => openModal({ type: 'submit' })}><${Icon} name="send" size=${18} />작성완료 및 입회요청</button>`}
+      ${role === 'giver' && !ro && h.status === 'rejected' && html`<button class="btn primary" onClick=${() => openModal({ type: 'submit' })}><${Icon} name="send" size=${18} />보완 완료 및 입회 재요청</button>`}
+      ${role === 'giver' && h.status === 'pending' && html`<span class="muted small lock-note"><${Icon} name="lock" size=${14} />입회대기 중에는 편집이 잠깁니다</span>`}
       ${role === 'reviewer' && h.status === 'pending' && html`
-        <button class="btn danger" onClick=${() => openModal({ type: 'reject' })}>반려</button>
-        <button class="btn primary" onClick=${() => openModal({ type: 'approve' })}><${Icon} name="check" size=${18} />결재</button>`}
+        ${ro
+          ? html`<span class="muted small lock-note" title="질문 기간이 끝나 인계자가 보완할 수 없습니다"><${Icon} name="lock" size=${14} />보완 기간이 끝나 반려할 수 없습니다</span>`
+          : html`<button class="btn danger" onClick=${() => openModal({ type: 'reject' })}>반려</button>`}
+        <button class="btn primary" onClick=${() => openModal({ type: 'approve' })}><${Icon} name="check" size=${18} />입회완료</button>`}
     </div>
+    ${showsSnapshot(role, h) && html`<div class="snap-banner">
+      <${Icon} name="info" size=${16} />
+      <span>인계자가 반려 사유를 보완하고 있습니다. 보완이 끝나 다시 입회요청될 때까지 <strong>${fmtStamp(h.attachment.at)}</strong>에 입회요청된 내용을 보여 드립니다.</span>
+    </div>`}
     ${h.status === 'rejected' && lastReject && html`<div class="reject-banner">
       <span class="badge pill st-rejected">반려 사유</span>
       <span>${lastReject.reason}</span>
@@ -110,8 +118,8 @@ export async function regenerateBriefing(pid) {
       onText: (t) => setUI({ briefStream: { pid, text: t, phase: 'streaming' } }),
     });
     setBriefing(pid, { text: raw.trim(), at: stamp(getState().today), status: 'ok' });
-  } catch {
-    setBriefing(pid, { ...(h.briefing || {}), status: 'error' });
+  } catch (e) {
+    setBriefing(pid, { ...(h.briefing || {}), status: 'error', reason: aiFailReason(e) });
   }
   setUI({ briefStream: null });
 }
@@ -127,7 +135,7 @@ function Briefing({ view, mode, canRegen, pid }) {
     body = html`<div class="brief-body"><${RichLines} text=${stream.text} streaming=${true} /></div>`;
   } else if (!b || b.status === 'error' || !b.text) {
     body = html`<div class="ai-fail">
-      <p>AI 응답을 불러오지 못했습니다.</p>
+      <p>${b?.reason === 'quota' ? AI_QUOTA_MSG : 'AI 응답을 불러오지 못했습니다.'}</p>
       ${canRegen && html`<button class="btn-text" onClick=${() => regenerateBriefing(pid)}><${Icon} name="refresh" size=${16} />다시 시도</button>`}
     </div>`;
   } else {
@@ -329,7 +337,7 @@ export function OnePage() {
       <p class="small muted">이전 담당자와 전체 합산 탭은 지금도 볼 수 있습니다.</p>
     </${Empty}>`;
   } else if (hiddenCurrent) {
-    summary = html`<${Empty} title="아직 상신된 인계서가 없습니다" desc="인계자가 인계서를 상신하면 이곳에서 볼 수 있어요. 그동안 이전 담당자와 전체 합산 탭을 살펴보세요." chars=${role === 'reviewer' ? ['char-giver', 'char-receiver'] : ['char-receiver']}>
+    summary = html`<${Empty} title="아직 입회요청된 인계서가 없습니다" desc="인계자가 입회를 요청하면 이곳에서 볼 수 있어요. 그동안 이전 담당자와 전체 합산 탭을 살펴보세요." chars=${role === 'reviewer' ? ['char-giver', 'char-receiver'] : ['char-receiver']}>
       <button class="btn secondary" onClick=${() => setTab('all')}><${Icon} name="layers" size=${18} />전체 합산 보기</button>
     </${Empty}>`;
   } else {
@@ -351,7 +359,7 @@ export function OnePage() {
       ${tab !== 'current' && html`<div class="status-bar glass slim">
         <div class="sb-info">
           ${tab === 'all' ? html`<span class="badge pill st-approved">전체 합산</span><span class="muted small">역대 확정 인계서${views.showCurrent ? '와 현재 인계서' : ''}를 업무 단위로 합쳐 보여줍니다</span>`
-            : html`<span class="badge pill st-approved">결재완료</span><${ReadOnlyBadge} /><span class="muted small">${view.person.rank} ${view.person.name} · ${view.periodLabel} 확정 인계서</span>`}
+            : html`<span class="badge pill st-approved">입회완료</span><${ReadOnlyBadge} /><span class="muted small">${view.person.rank} ${view.person.name} · ${view.periodLabel} 확정 인계서</span>`}
         </div>
       </div>`}
       <div class="tab-pane first-body" key=${paneKey}>${summary}</div>

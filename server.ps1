@@ -48,6 +48,7 @@ function Invoke-Gemini($kind, $inputText) {
     generationConfig = @{ temperature = 0.3; maxOutputTokens = 2048 }
   } | ConvertTo-Json -Depth 10 -Compress
   $lastError = 'no model'
+  $sawQuota = $false
   foreach ($m in $models) {
     try {
       $wc = New-Object Net.WebClient
@@ -62,10 +63,12 @@ function Invoke-Gemini($kind, $inputText) {
     } catch [Net.WebException] {
       $code = if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 }
       $lastError = "$m -> $code"
+      if ($code -eq 429) { $sawQuota = $true }
       Write-Host "AI fallback: $lastError"
       if ($code -notin 404, 429, 500, 503, 0) { throw }
     }
   }
+  if ($sawQuota) { throw "QUOTA ($lastError)" }
   throw "all models failed ($lastError)"
 }
 
@@ -88,7 +91,8 @@ while ($listener.IsListening) {
         Send $ctx 200 'text/plain; charset=utf-8' $utf8.GetBytes($text)
       } catch {
         Write-Host "AI error: $($_.Exception.Message)"
-        Send $ctx 502 'text/plain; charset=utf-8' $utf8.GetBytes("AI error: $($_.Exception.Message)")
+        $status = if ($_.Exception.Message -like 'QUOTA*') { 429 } else { 502 }
+        Send $ctx $status 'text/plain; charset=utf-8' $utf8.GetBytes("AI error: $($_.Exception.Message)")
       }
       continue
     }
