@@ -541,7 +541,7 @@ textarea.input { resize: vertical; line-height: 1.55; }
 .tool-btn:hover { border-color: rgba(79,123,255,.35); }
 .tool-btn.on { color: var(--blue-500); border-color: rgba(79,123,255,.45); background: var(--blue-100); }
 .tool-btn .ic { color: currentColor; }
-.tool-popover { left: 0; right: auto; width: 260px; }
+.tool-popover { left: auto; right: 0; width: 260px; }
 .month-range { display: flex; align-items: center; gap: 8px; }
 .month-range .input { flex: 1; }
 mark.hit { background: rgba(242,180,90,.35); color: inherit; border-radius: 4px; padding: 0 1px; }
@@ -831,6 +831,8 @@ mark.hit { background: rgba(242,180,90,.35); color: inherit; border-radius: 4px;
   .tree-meta { display: none; }
   .info-grid { grid-template-columns: 90px 1fr; }
   .popover { position: fixed; left: 16px; right: 16px; top: 64px; width: auto; }
+  .rec-chip { max-width: 100%; flex-wrap: wrap; }
+  .rec-chip .rec-title { white-space: normal; min-width: 0; }
   .detail-tools { width: 100%; }
   .tool-search { flex: 1 1 100%; }
   .tool-search .input { width: 100%; }

@@ -555,6 +555,10 @@ export function Detail({ s, views, view, mode }) {
 
   return html`<section class="detail" id="detail" ref=${topRef}>
     <div class="detail-head">
+      <h2 class="h2">상세 업무</h2>
+      <span class="muted small tnum">${filtered ? `${shown.length} / ${source.length}건` : `${source.length}건`}</span>
+      ${filtered && html`<button class="btn-text sm" onClick=${resetAll}><${Icon} name="reset" size=${14} />필터 초기화</button>`}
+      <span class="grow"></span>
       <div class="detail-tools" role="search">
         <label class="tool-search">
           <${Icon} name="search" size=${16} />
@@ -570,10 +574,6 @@ export function Detail({ s, views, view, mode }) {
           </select>
         </label>
       </div>
-      <h2 class="h2">상세 업무</h2>
-      <span class="muted small tnum">${filtered ? `${shown.length} / ${source.length}건` : `${source.length}건`}</span>
-      ${filtered && html`<button class="btn-text sm" onClick=${resetAll}><${Icon} name="reset" size=${14} />필터 초기화</button>`}
-      <span class="grow"></span>
       ${ctx.editable && html`<button class="btn secondary sm" onClick=${addNew}><${Icon} name="plus" size=${16} />항목 추가</button>`}
     </div>
     <div class="chips detail-chips">
