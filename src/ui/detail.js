@@ -150,14 +150,15 @@ function Thread({ root, all, ctx }) {
   const hl = ui.highlight?.qaId === root.id;
   const hasGiverReply = rest.some((q) => q.authorType === 'giver');
 
+  const targeted = ui.followUp?.rootId === root.id;
   let aiActions = null;
   if (isCurrent && role === 'receiver' && !root.forwarded && (!pending || pending.phase === 'error')) {
     if (!canAsk) aiActions = html`<span class="muted small">전임자 질문 기간이 끝났습니다</span>`;
-    else if (ai && ai.found) aiActions = html`<button class="btn secondary sm" onClick=${() => { forwardQuestion(root.id); toast('전임자에게 질문과 AI 답변을 함께 보냈습니다', 'ok'); }}><${Icon} name="send" size=${15} />전임자에게 추가 질문</button>`;
-    else aiActions = html`<button class="btn primary sm" onClick=${() => { forwardQuestion(root.id); toast('전임자에게 질문을 보냈습니다', 'ok'); }}><${Icon} name="send" size=${15} />전임자에게 질문하기</button>`;
+    else if (ai && ai.found) aiActions = html`<button class="btn secondary sm" disabled=${targeted} onClick=${() => startFollowUp(root, true)}><${Icon} name="send" size=${15} />${targeted ? '아래 칸에서 작성 중' : '전임자에게 추가 질문'}</button>`;
+    else aiActions = html`<button class="btn primary sm" disabled=${targeted} onClick=${() => startFollowUp(root, false)}><${Icon} name="send" size=${15} />${targeted ? '아래 칸에서 작성 중' : '전임자에게 질문하기'}</button>`;
   }
 
-  return html`<div id=${`qa-${root.id}`} class=${cx('thread', hl && 'flash')}>
+  return html`<div id=${`qa-${root.id}`} class=${cx('thread', hl && 'flash', targeted && 'targeted')}>
     <div class="bubble right receiver">
       <div class="bubble-head">
         <span class="who">${root.authorName}</span>
@@ -168,14 +169,32 @@ function Thread({ root, all, ctx }) {
     </div>
     ${!root.direct && html`<${AIBubble} answer=${ai} pending=${pending} pos=${pos} items=${items} actions=${aiActions}
       onRetry=${isCurrent && role === 'receiver' ? () => runAI(pid, root.id) : null} />`}
-    ${rest.map((q) => html`<${PersonBubble} key=${q.id} q=${q} side=${q.authorType === 'giver' ? 'left' : 'right'} badge=${q.authorType === 'giver' ? '전임자' : null} />`)}
+    ${rest.map((q) => html`<${PersonBubble} key=${q.id} q=${q} side=${q.authorType === 'giver' ? 'left' : 'right'} badge=${q.authorType === 'giver' ? '전임자' : q.toGiver ? '전임자에게 추가 질문' : null} />`)}
     ${isCurrent && root.forwarded && canAsk && role === 'giver' && html`<${ReplyBox} placeholder="인수자에게 답글을 남겨 주세요" onSend=${(t) => { addReply(root.id, 'giver', t); toast('답글을 남겼습니다. 인수자에게 알림이 갑니다.', 'ok'); }} />`}
     ${isCurrent && root.forwarded && canAsk && role === 'receiver' && hasGiverReply && html`<${ReplyBox} placeholder="전임자에게 답글" onSend=${(t) => addReply(root.id, 'receiver', t)} />`}
   </div>`;
 }
 
+/**
+ * [전임자에게 추가 질문]/[전임자에게 질문하기]를 누르면 그 항목 아래 질문 칸이 "전임자에게 보내기" 모드가 된다.
+ * required: 추가 질문은 덧붙일 말을 써야 보낼 수 있고, 근거를 못 찾은 경우는 원래 질문만으로도 보낼 수 있다.
+ */
+function startFollowUp(root, required) {
+  setUI({ followUp: { itemId: root.itemId, rootId: root.id, required, at: Date.now() } });
+  setTimeout(() => {
+    const input = document.querySelector(`#ask-${root.itemId} input`);
+    if (!input) return;
+    input.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
+    input.focus({ preventScroll: true });
+  }, 30);
+}
+const endFollowUp = () => setUI({ followUp: null });
+
 function AskBox({ pid, itemId, canAsk }) {
+  const ui = useUI();
   const [text, setText] = useState('');
+  const fu = ui.followUp?.itemId === itemId ? ui.followUp : null;
+  const root = fu ? getState().qa.find((q) => q.id === fu.rootId) : null;
   const ask = (direct) => {
     const t = text.trim();
     if (!t) return;
@@ -184,7 +203,37 @@ function AskBox({ pid, itemId, canAsk }) {
     if (direct) toast('전임자에게 바로 질문했습니다', 'ok');
     else runAI(pid, id);
   };
-  return html`<div class="ask-box">
+  const sendToGiver = () => {
+    const t = text.trim();
+    if (!root || (fu.required && !t)) return;
+    forwardQuestion(root.id, t);
+    setText('');
+    endFollowUp();
+    toast(t ? '전임자에게 추가 질문과 AI 답변을 함께 보냈습니다' : '전임자에게 질문을 보냈습니다', 'ok');
+  };
+  const short = (s) => (s.length > 28 ? `${s.slice(0, 28)}…` : s);
+
+  if (fu && root) {
+    return html`<div class="ask-box to-giver fade-in" id=${`ask-${itemId}`}>
+      <div class="follow-tag">
+        <${Icon} name="send" size=${14} />
+        <span><strong>'${short(root.text)}'</strong> 질문에 이어서 전임자에게 · 원래 질문${root.direct ? '' : '과 AI 답변'}이 함께 전달됩니다</span>
+        <button class="chip-x" onClick=${() => { setText(''); endFollowUp(); }} title="취소 (Esc)" aria-label="전임자에게 보내기 취소"><${Icon} name="x" size=${14} /></button>
+      </div>
+      <div class="ask-row">
+        <input class="input" value=${text}
+          placeholder=${fu.required ? '전임자에게 더 묻고 싶은 내용을 적어 주세요 (예: 작전과 담당자 연락처도 알 수 있을까요?)' : '덧붙일 말이 있으면 적어 주세요 (비워 두고 보내도 됩니다)'}
+          onInput=${(e) => setText(e.target.value)}
+          onKeyDown=${(e) => {
+            if (e.key === 'Enter' && !e.isComposing) sendToGiver();
+            if (e.key === 'Escape') { setText(''); endFollowUp(); }
+          }} />
+        <button class="btn giver" disabled=${fu.required && !text.trim()} onClick=${sendToGiver}><${Icon} name="send" size=${16} />전임자에게 보내기</button>
+      </div>
+    </div>`;
+  }
+
+  return html`<div class="ask-box" id=${`ask-${itemId}`}>
     <div class="ask-row">
       <input class="input" value=${text} placeholder="이 업무에 대해 궁금한 점을 물어보세요" onInput=${(e) => setText(e.target.value)}
         onKeyDown=${(e) => { if (e.key === 'Enter' && !e.isComposing) ask(false); }} />

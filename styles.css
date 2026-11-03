@@ -589,6 +589,16 @@ textarea.input { resize: vertical; line-height: 1.55; }
 .ask-row { display: flex; gap: 8px; }
 .ask-row .input { flex: 1; }
 .ask-hint .ended { color: var(--ink-300); }
+/* 전임자에게 보내기 모드: AI 질문(보라 그라데이션)과 구분되게 전임자 배지와 같은 파랑 계열 */
+.ask-box.to-giver { padding: 10px; margin: 0 -10px; border-radius: 16px; background: rgba(230,237,255,.7); box-shadow: inset 0 0 0 1.5px rgba(79,123,255,.35); }
+.ask-box.to-giver .input { border-color: rgba(79,123,255,.45); }
+.follow-tag { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #2F5BDB; }
+.follow-tag > .ic { flex: none; }
+.follow-tag span { flex: 1; min-width: 0; color: var(--ink-700); }
+.follow-tag strong { color: var(--ink-900); font-weight: 600; }
+.btn.giver { background: #2F5BDB; color: #fff; box-shadow: var(--sh-2); }
+.btn.giver:hover:not(:disabled) { background: #284FC2; }
+.thread.targeted { background: rgba(230,237,255,.55); box-shadow: 0 0 0 2px rgba(79,123,255,.22); }
 .reply-box { display: flex; gap: 8px; align-self: stretch; padding-left: 8px; }
 .reply-box .input { min-height: 38px; padding: 8px 12px; font-size: 14px; }
 

@@ -305,7 +305,7 @@ export function addQuestion(pid, itemId, text, direct) {
   return id;
 }
 
-function notifyQuestion(s, pid, itemId, rootId) {
+function notifyQuestion(s, pid, itemId, rootId, note) {
   const h = s.handovers[pid];
   const item = h.items.find((i) => i.id === itemId);
   const root = s.qa.find((q) => q.id === rootId);
@@ -315,7 +315,11 @@ function notifyQuestion(s, pid, itemId, rootId) {
     title: `[BATON] ${posTitle(pid)} 인계서 – '${item?.title}'에 새 질문`,
     path: item ? itemPath(pid, item) : posTitle(pid),
     author: root.authorName,
-    body: [{ label: '질문', text: root.text }, ...(ai ? [{ label: '✦ AI 답변', text: ai.text }] : [])],
+    body: [
+      { label: '질문', text: root.text },
+      ...(ai ? [{ label: '✦ AI 답변', text: ai.text }] : []),
+      ...(note ? [{ label: '전임자에게 추가 질문', text: note }] : []),
+    ],
     itemId, qaId: rootId,
   });
 }
@@ -329,12 +333,17 @@ export function addAIAnswer(rootId, answer) {
   });
 }
 
-export function forwardQuestion(rootId) {
+/** 전임자에게 전달. note: 인수자가 덧붙인 말(추가 질문) — 스레드에 남기고 알림에도 함께 담는다 */
+export function forwardQuestion(rootId, note = '') {
   setState((s) => {
     const root = s.qa.find((q) => q.id === rootId);
     if (!root || root.forwarded) return;
     root.forwarded = true;
-    notifyQuestion(s, root.positionId, root.itemId, rootId);
+    const text = note.trim();
+    if (text) {
+      s.qa.push({ id: uid('r'), positionId: root.positionId, itemId: root.itemId, parentId: rootId, authorType: 'receiver', authorName: root.authorName, text, at: stamp(s.today), toGiver: true });
+    }
+    notifyQuestion(s, root.positionId, root.itemId, rootId, text);
   });
 }
 
