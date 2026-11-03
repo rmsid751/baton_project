@@ -707,7 +707,8 @@ mark.hit { background: rgba(242,180,90,.35); color: inherit; border-radius: 4px;
 .run-line.done .run-ic { background: var(--mint-100); color: #1F7A60; }
 .run-line.ai .run-ic { background: var(--grad-ai); color: #fff; }
 .run-line.ai.run .run-ic { animation: pulse 1.2s ease-in-out infinite; }
-.run-line.warn .run-ic { background: #EEF1F7; color: var(--ink-500); }
+.run-line.warn { color: #9A6412; }
+.run-line.warn .run-ic { background: var(--amber-100); color: #9A6412; }
 @keyframes pulse { 50% { transform: scale(1.12); opacity: .8; } }
 .spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(79,123,255,.25); border-top-color: var(--blue-500); animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

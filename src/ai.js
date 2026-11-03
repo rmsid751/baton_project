@@ -6,6 +6,11 @@ import { CATS } from './engine.js';
 import { hash, periodLabel } from './util.js';
 
 const MARK = '<<<REFS>>>';
+
+/** API 사용량(요청 횟수) 초과로 막혔을 때 결과 자리에 보여 주는 문구 */
+export const AI_QUOTA_MSG = 'API 사용량 초과로 AI 서비스 사용이 제한됩니다.';
+/** 실패 이유: 'quota'(사용량 초과) | 'error'(그 밖의 실패) */
+export const aiFailReason = (e) => (e?.code === 'quota' ? 'quota' : 'error');
 // 로컬 서버는 스트리밍 없이 답을 한 번에 돌려주고, Gemini 3.x 응답은 10초 안팎 걸려 여유를 둔다
 const FIRST_BYTE_MS = 25000;
 const TOTAL_MS = 45000;
@@ -15,12 +20,14 @@ function typewriter(onText) {
   let target = '';
   let shown = 0;
   let done = false;
+  let stopped = false;
   let resolveEnd;
   const ended = new Promise((r) => { resolveEnd = r; });
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // 화면 갱신(requestAnimationFrame) 대신 짧은 타이머로 진행한다: 탭이 뒤에 있거나 가려져 있어도 멈추지 않는다
   const next = () => setTimeout(frame, 16);
   function frame() {
+    if (stopped) return;
     if (shown < target.length) {
       const gap = target.length - shown;
       shown = reduce || document.hidden ? target.length : Math.min(target.length, shown + Math.max(1, Math.ceil(gap / 14)));
@@ -33,12 +40,16 @@ function typewriter(onText) {
   return {
     push(t) { target = t; },
     finish() { done = true; return ended; },
+    cancel() { stopped = true; resolveEnd(); }, // 실패하면 타이머를 멈추고 더 이상 화면에 쓰지 않는다
   };
 }
 
 /**
  * @returns {Promise<string>} 전체 원문
  */
+/** 미리 작성본이나 브라우저 저장본이 있어 호출 없이 바로 답할 수 있는지 */
+export const hasCached = (cacheKey) => !!(BAKED[cacheKey] || getState().aiCache[cacheKey]);
+
 export async function streamAI({ kind, input, cacheKey, onText }) {
   // 미리 Gemini로 만들어 둔 결과(baked-ai.js) → 브라우저 저장본 → 실제 호출 순서
   const cached = BAKED[cacheKey] || getState().aiCache[cacheKey];
@@ -59,7 +70,11 @@ export async function streamAI({ kind, input, cacheKey, onText }) {
       body: JSON.stringify({ kind, input }),
       signal: ctrl.signal,
     });
-    if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok || !res.body) {
+      const err = new Error(`HTTP ${res.status}`);
+      if (res.status === 429) err.code = 'quota';
+      throw err;
+    }
     const reader = res.body.getReader();
     const dec = new TextDecoder();
     for (;;) {
@@ -75,6 +90,9 @@ export async function streamAI({ kind, input, cacheKey, onText }) {
     await tw.finish();
     putCache(cacheKey, { raw, at: new Date().toISOString() });
     return raw;
+  } catch (e) {
+    tw.cancel();
+    throw e;
   } finally {
     clearTimeout(first);
     clearTimeout(total);

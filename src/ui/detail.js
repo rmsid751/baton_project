@@ -7,7 +7,7 @@ import {
   addAIAnswer, addItem, addQuestion, addReply, canAskPredecessor, deleteItem, forwardQuestion, getState,
   isEditable, personLabel, setTab, setUI, toast, toggleImportant, updateItem, useUI, viewItems,
 } from '../store.js';
-import { answerCacheKey, answerInput, giverPeriodLabel, parseAnswer, streamAI, visibleAnswer } from '../ai.js';
+import { AI_QUOTA_MSG, aiFailReason, answerCacheKey, answerInput, giverPeriodLabel, parseAnswer, streamAI, visibleAnswer } from '../ai.js';
 import { AIBadge, CatBadge, CatSym, Rich } from './common.js';
 import { cx, dot, fmtStamp, scrollToId, uid } from '../util.js';
 
@@ -38,8 +38,8 @@ async function runAI(pid, rootId) {
     });
     addAIAnswer(rootId, parseAnswer(raw));
     clearPending(rootId);
-  } catch {
-    setPending(rootId, { phase: 'error' });
+  } catch (e) {
+    setPending(rootId, { phase: 'error', reason: aiFailReason(e) });
   }
 }
 
@@ -94,7 +94,7 @@ function AIBubble({ answer, pending, pos, items, onRetry, actions }) {
   if (pending?.phase === 'error' || !answer) {
     return html`<div class="bubble ai left fail pop-in">
       <div class="bubble-head"><${AIBadge} /></div>
-      <p class="muted">AI 응답을 불러오지 못했습니다.</p>
+      <p class="muted">${pending?.reason === 'quota' ? AI_QUOTA_MSG : 'AI 응답을 불러오지 못했습니다.'}</p>
       <div class="bubble-actions">
         ${onRetry && html`<button class="btn-text" onClick=${onRetry}><${Icon} name="refresh" size=${15} />다시 시도</button>`}
         ${actions}

@@ -7,7 +7,7 @@ import {
   addItem, canAskPredecessor, getState, ignoreRec, isEditable, isReadOnly, isVisibleTo, openModal,
   personLabel, setBriefing, setTab, setUI, showsSnapshot, toast, useStore, useUI, viewItems, windowEnd,
 } from '../store.js';
-import { briefCacheKey, briefingInput, streamAI } from '../ai.js';
+import { AI_QUOTA_MSG, aiFailReason, briefCacheKey, briefingInput, streamAI } from '../ai.js';
 import { AIBadge, Empty, ReadOnlyBadge, RichLines, StatusBadge } from './common.js';
 import { CompareTable, DeptTable, Donut, FIT_QUERY, MonthlyChart, YearMap, useMedia } from './viz.js';
 import { CATS, CAT_ORDER } from '../engine.js';
@@ -118,8 +118,8 @@ export async function regenerateBriefing(pid) {
       onText: (t) => setUI({ briefStream: { pid, text: t, phase: 'streaming' } }),
     });
     setBriefing(pid, { text: raw.trim(), at: stamp(getState().today), status: 'ok' });
-  } catch {
-    setBriefing(pid, { ...(h.briefing || {}), status: 'error' });
+  } catch (e) {
+    setBriefing(pid, { ...(h.briefing || {}), status: 'error', reason: aiFailReason(e) });
   }
   setUI({ briefStream: null });
 }
@@ -135,7 +135,7 @@ function Briefing({ view, mode, canRegen, pid }) {
     body = html`<div class="brief-body"><${RichLines} text=${stream.text} streaming=${true} /></div>`;
   } else if (!b || b.status === 'error' || !b.text) {
     body = html`<div class="ai-fail">
-      <p>AI 응답을 불러오지 못했습니다.</p>
+      <p>${b?.reason === 'quota' ? AI_QUOTA_MSG : 'AI 응답을 불러오지 못했습니다.'}</p>
       ${canRegen && html`<button class="btn-text" onClick=${() => regenerateBriefing(pid)}><${Icon} name="refresh" size=${16} />다시 시도</button>`}
     </div>`;
   } else {

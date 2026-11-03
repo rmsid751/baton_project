@@ -4,7 +4,7 @@ import { Icon } from '../icons.js';
 import { POSITION, giverOf, reviewerOf } from '../data/seed.js';
 import { analyze, isExcluded } from '../engine.js';
 import { approve, closeModal, getState, personLabel, reject, resetAll, saveGenerated, setTab, submit, toast, useStore, useUI } from '../store.js';
-import { briefCacheKey, briefingInput, describeCacheKey, describeInput, streamAI } from '../ai.js';
+import { AI_QUOTA_MSG, aiFailReason, briefCacheKey, briefingInput, describeCacheKey, describeInput, hasCached, streamAI } from '../ai.js';
 import { cx, dot, fmtStamp, stamp } from '../util.js';
 import { makeHandoverPdf } from '../pdf.js';
 
@@ -172,22 +172,26 @@ function AutoWrite() {
     if (fresh.length) {
       setLines((l) => [...l, { text: `AI가 근거 문서와 역대 설명으로 업무 설명 작성 중… (${fresh.length}건)`, state: 'run', ai: true, key: 'desc' }]);
       let ok = 0;
+      let quota = false; // 사용량 초과를 한 번 만나면 남은 항목은 미리 작성본이 있을 때만 쓴다
       const queue = [...fresh];
       // 실제 호출일 때 한꺼번에 몰리지 않게 3건씩 나눠 부른다 (미리 작성본은 바로 끝난다)
       const worker = async () => {
         for (let it = queue.shift(); it; it = queue.shift()) {
           const input = describeInput(pid, it);
-          try {
-            const raw = (await streamAI({ kind: 'describe', input, cacheKey: describeCacheKey(input), onText: () => {} })).trim();
-            if (raw) { it.desc = raw; ok += 1; }
-          } catch { /* 못 부르면 이전 담당자 설명(없으면 임시 설명)이 남는다 */ }
+          const cacheKey = describeCacheKey(input);
+          if (!quota || hasCached(cacheKey)) {
+            try {
+              const raw = (await streamAI({ kind: 'describe', input, cacheKey, onText: () => {} })).trim();
+              if (raw) { it.desc = raw; ok += 1; }
+            } catch (e) { if (aiFailReason(e) === 'quota') quota = true; } // 못 쓰면 이전 담당자 설명(없으면 시기 문장)이 남는다
+          }
           delete it.descAuto;
           delete it.descRef;
         }
       };
       await Promise.all([worker(), worker(), worker()]);
       if (!alive.current) return;
-      setLines((l) => l.map((x) => (x.key === 'desc' ? { ...x, state: ok === fresh.length ? 'done' : 'warn', text: ok === fresh.length ? `AI 업무 설명 작성 완료 (${ok}건)` : `AI 업무 설명 ${fresh.length - ok}건을 다시 쓰지 못해 기존 설명을 두었습니다` } : x)));
+      setLines((l) => l.map((x) => (x.key === 'desc' ? { ...x, state: ok === fresh.length ? 'done' : 'warn', text: ok === fresh.length ? `AI 업무 설명 작성 완료 (${ok}건)` : quota ? `${AI_QUOTA_MSG} 업무 설명 ${fresh.length - ok}건은 기존 설명을 두었습니다` : `AI 업무 설명 ${fresh.length - ok}건을 다시 쓰지 못해 기존 설명을 두었습니다` } : x)));
     }
     setLines((l) => [...l, { text: 'AI 인계 브리핑 작성 중…', state: 'run', ai: true, key: 'brief' }]);
     const today = getState().today;
@@ -196,11 +200,11 @@ function AutoWrite() {
     try {
       const raw = await streamAI({ kind: 'briefing', input, cacheKey: briefCacheKey(input), onText: () => {} });
       briefing = { text: raw.trim(), at: stamp(today), status: 'ok' };
-    } catch {
-      briefing = { status: 'error', at: stamp(today) };
+    } catch (e) {
+      briefing = { status: 'error', reason: aiFailReason(e), at: stamp(today) };
     }
     if (!alive.current) return;
-    setLines((l) => l.map((x) => (x.key === 'brief' ? { ...x, state: briefing.status === 'ok' ? 'done' : 'warn', text: briefing.status === 'ok' ? 'AI 인계 브리핑 작성 완료' : 'AI 브리핑을 불러오지 못했습니다 (원페이지에서 다시 시도)' } : x)));
+    setLines((l) => l.map((x) => (x.key === 'brief' ? { ...x, state: briefing.status === 'ok' ? 'done' : 'warn', text: briefing.status === 'ok' ? 'AI 인계 브리핑 작성 완료' : briefing.reason === 'quota' ? `${AI_QUOTA_MSG} 브리핑은 원페이지에서 다시 시도할 수 있습니다` : 'AI 브리핑을 불러오지 못했습니다 (원페이지에서 다시 시도)' } : x)));
     setPct(100);
     setDone(true);
     await sleep(800);
@@ -276,7 +280,7 @@ function AutoWrite() {
       <div class="progress"><i style=${`width:${pct}%`}></i></div>
       <ul class="run-list">
         ${lines.map((l, i) => html`<li key=${i} class=${cx('run-line fade-up', l.state, l.ai && 'ai')}>
-          <span class="run-ic">${l.state === 'done' ? html`<${Icon} name="check" size=${15} />` : l.ai ? html`<${Icon} name="sparkle" size=${15} />` : l.state === 'warn' ? html`<${Icon} name="info" size=${15} />` : html`<span class="spin"></span>`}</span>
+          <span class="run-ic">${l.state === 'done' ? html`<${Icon} name="check" size=${15} />` : l.state === 'warn' ? html`<${Icon} name="info" size=${15} />` : l.ai ? html`<${Icon} name="sparkle" size=${15} />` : html`<span class="spin"></span>`}</span>
           ${l.text}
         </li>`)}
       </ul>
