@@ -167,21 +167,27 @@ function AutoWrite() {
       setLines((l) => l.map((x, k) => (k === i ? { ...x, state: 'done' } : x)));
       setPct(((i + 1) / total) * 100);
     }
-    // 역대 인계서에 없는 업무는 AI가 근거 문서를 보고 설명을 채운다
+    // AI가 업무 설명을 다시 쓴다: 이번 근거 문서 + 이전 담당자 설명(있으면)
     const fresh = result.items.filter((it) => it.descAuto);
     if (fresh.length) {
-      setLines((l) => [...l, { text: `역대 인계서에 없는 업무 ${fresh.length}건 · AI가 근거 문서로 설명 작성 중…`, state: 'run', ai: true, key: 'desc' }]);
+      setLines((l) => [...l, { text: `AI가 근거 문서와 역대 설명으로 업무 설명 작성 중… (${fresh.length}건)`, state: 'run', ai: true, key: 'desc' }]);
       let ok = 0;
-      await Promise.all(fresh.map(async (it) => {
-        const input = describeInput(pid, it);
-        try {
-          const raw = (await streamAI({ kind: 'describe', input, cacheKey: describeCacheKey(input), onText: () => {} })).trim();
-          if (raw) { it.desc = raw; ok += 1; }
-        } catch { /* 못 부르면 임시 설명이 남는다 */ }
-        delete it.descAuto;
-      }));
+      const queue = [...fresh];
+      // 실제 호출일 때 한꺼번에 몰리지 않게 3건씩 나눠 부른다 (미리 작성본은 바로 끝난다)
+      const worker = async () => {
+        for (let it = queue.shift(); it; it = queue.shift()) {
+          const input = describeInput(pid, it);
+          try {
+            const raw = (await streamAI({ kind: 'describe', input, cacheKey: describeCacheKey(input), onText: () => {} })).trim();
+            if (raw) { it.desc = raw; ok += 1; }
+          } catch { /* 못 부르면 이전 담당자 설명(없으면 임시 설명)이 남는다 */ }
+          delete it.descAuto;
+          delete it.descRef;
+        }
+      };
+      await Promise.all([worker(), worker(), worker()]);
       if (!alive.current) return;
-      setLines((l) => l.map((x) => (x.key === 'desc' ? { ...x, state: ok === fresh.length ? 'done' : 'warn', text: ok === fresh.length ? `AI 업무 설명 작성 완료 (${ok}건)` : `AI 업무 설명 ${fresh.length - ok}건을 작성하지 못했습니다 (직접 고칠 수 있음)` } : x)));
+      setLines((l) => l.map((x) => (x.key === 'desc' ? { ...x, state: ok === fresh.length ? 'done' : 'warn', text: ok === fresh.length ? `AI 업무 설명 작성 완료 (${ok}건)` : `AI 업무 설명 ${fresh.length - ok}건을 다시 쓰지 못해 기존 설명을 두었습니다` } : x)));
     }
     setLines((l) => [...l, { text: 'AI 인계 브리핑 작성 중…', state: 'run', ai: true, key: 'brief' }]);
     const today = getState().today;
