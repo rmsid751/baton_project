@@ -66,17 +66,14 @@ function buildHtml({ pid, handover, receiver, today }) {
       <td style="${td}">${esc(it.period)}</td>
       <td style="${td}">${esc((it.depts || []).join(', ') || '—')}</td></tr>`).join('');
 
+  // 업무별 상세에는 근거 문서를 넣지 않는다 (근거는 BATON 화면에서 확인)
   const detail = items.map((it, i) => {
-    const docs = (it.docIds || []).map((id) => docTitle(pos, id)).filter(Boolean).slice(0, 4);
-    const hist = (it.histRefs || []).map((r) => `역대 인계서 · ${r.label}`);
-    const refs = [...docs, ...hist];
     return `<div class="pdf-item" style="border:1px solid #C9CFDC;border-radius:6px;padding:8px 10px;margin-bottom:8px;page-break-inside:avoid;">
       <div style="font-weight:700;font-size:10.5pt;">${i + 1}. ${esc(it.title)}${it.important ? ' <span style="color:#4F7BFF;">★ 중요</span>' : ''}
         <span style="font-weight:400;color:#3A4664;font-size:9pt;"> | ${esc(CATS[it.category]?.label || '')} · ${esc(it.period)}</span></div>
       <div style="margin-top:4px;">${esc(it.desc)}</div>
       ${it.depts?.length ? `<div style="margin-top:4px;"><b>관계부서</b> ${esc(it.depts.join(', '))}</div>` : ''}
       ${it.memo ? `<div style="margin-top:4px;padding:5px 8px;background:#E6EDFF;border-radius:4px;"><b>인계자 메모</b> ${esc(it.memo)}</div>` : ''}
-      ${refs.length ? `<div style="margin-top:4px;color:#3A4664;font-size:8.5pt;"><b>근거</b> ${refs.map(esc).join(' / ')}${(it.docIds || []).length > 4 ? ` 외 ${(it.docIds.length - 4)}건` : ''}</div>` : ''}
     </div>`;
   }).join('');
 
