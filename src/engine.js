@@ -81,6 +81,12 @@ export function periodText(category, months, week) {
   return list;
 }
 
+/** 특이사항 시기: 한 번 있었던 일이라 연·월로 적는다 (예: 2026년 2월) */
+export function specialPeriod(...dates) {
+  const yms = [...new Set(dates.map((d) => d.slice(0, 7)))].sort();
+  return yms.map((ym) => `${+ym.slice(0, 4)}년 ${+ym.slice(5, 7)}월`).join(', ');
+}
+
 const catOrderIndex = (c) => CAT_ORDER.indexOf(c);
 export function sortItems(items) {
   return [...items].sort((a, b) => {
@@ -147,7 +153,7 @@ export function analyze({ files, onnara, folderIdxs, start, end }) {
     const category = classify({ special, ratio: ymSet.size / totalMonths, moy });
     const months = category === 'routine' ? [...served].sort((a, b) => a - b) : moy;
     const week = category === 'routine' ? mode(g.docs.map((d) => weekLabel(+d.date.slice(8, 10)))) : null;
-    const period = periodText(category, months, week);
+    const period = category === 'special' ? specialPeriod(...g.docs.map((d) => d.date)) : periodText(category, months, week);
     items.push({
       id: uid('it'),
       key: g.key,
