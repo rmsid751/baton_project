@@ -144,7 +144,7 @@ export function Landing() {
             <span class="role-icon"><${Icon} name=${meta.icon} size=${22} /></span>
             <span class="role-txt">
               <span class="role-name">${r.label}</span>
-              <span class="role-who">${r.who} · ${r.desc}</span>
+              <span class="role-who">${r.who} · ${r.desc[0]} <br class="role-br" />${r.desc[1]}</span>
             </span>
             <${Icon} name="right" size=${18} cls="role-chev" />
           </button>

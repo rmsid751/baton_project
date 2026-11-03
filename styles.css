@@ -265,7 +265,7 @@ textarea.input { resize: vertical; line-height: 1.55; }
 .tone-mint .role-icon { color: var(--mint-400); }
 .role-txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
 .role-name { font-size: 20px; font-weight: 700; color: var(--ink-900); letter-spacing: -.01em; }
-.role-who { font-size: 13px; color: var(--ink-500); }
+.role-who { font-size: 13px; color: var(--ink-500); word-break: keep-all; }
 .role-chev { color: var(--ink-300); transition: transform .25s var(--ease); flex: none; }
 .role-card.open .role-chev { transform: rotate(90deg); color: var(--ink-700); }
 .role-people { position: relative; display: grid; grid-template-rows: 0fr; transition: grid-template-rows .32s var(--ease); }
@@ -833,6 +833,7 @@ mark.hit { background: rgba(242,180,90,.35); color: inherit; border-radius: 4px;
   .popover { position: fixed; left: 16px; right: 16px; top: 64px; width: auto; }
   .rec-chip { max-width: 100%; flex-wrap: wrap; }
   .rec-chip .rec-title { white-space: normal; min-width: 0; }
+  .role-who .role-br { display: none; }
   .detail-tools { width: 100%; }
   .tool-search { flex: 1 1 100%; }
   .tool-search .input { width: 100%; }
