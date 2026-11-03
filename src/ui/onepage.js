@@ -170,7 +170,6 @@ function Tile({ label, value, unit, sub, sym }) {
   return html`<div class="tile" title=${sub}>
     <p class="tile-label">${label}</p>
     <p class="tile-num tnum">${sym && html`<span class="metric-sym">${sym}</span>`}${value}<span class="metric-unit">${unit}</span></p>
-    <p class="tile-sub">${sub}</p>
   </div>`;
 }
 
