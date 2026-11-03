@@ -32,7 +32,7 @@ export default async function handler(req, res) {
   // gemini-2.5-flash는 새 키에서 더 이상 제공되지 않는다(404). GEMINI_MODEL=a,b,c 로 바꿀 수 있다.
   const models = (process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite,gemini-flash-lite-latest,gemini-3.5-flash')
     .split(',').map((m) => m.trim()).filter(Boolean);
-  const body = JSON.stringify({
+  const payload = JSON.stringify({
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: 'user', parts: [{ text: input }] }],
     generationConfig: { temperature: 0.3, maxOutputTokens: 2048 },
@@ -42,7 +42,7 @@ export default async function handler(req, res) {
   for (const model of models) {
     const r = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`,
-      { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': key }, body },
+      { method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': key }, body: payload },
     );
     if (r.ok && r.body) { upstream = r; break; }
     lastStatus = r.status;
