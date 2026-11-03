@@ -149,7 +149,7 @@ function AutoWrite() {
 
   const run = async () => {
     setStep(4);
-    const result = analyze({ files: pos.files, onnara: pos.onnara, folderIdxs: added, start: giver.start, end: giver.end });
+    const result = analyze({ files: pos.files, onnara: pos.onnara, folderIdxs: added, start: giver.start, end: giver.end, history: pos.history });
     const st = result.stats;
     const plan = [
       `업무 폴더 ${added.length}개에서 파일 ${st.fileCount}개 확인`,

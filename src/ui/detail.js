@@ -9,7 +9,7 @@ import {
 } from '../store.js';
 import { answerCacheKey, answerInput, giverPeriodLabel, parseAnswer, streamAI, visibleAnswer } from '../ai.js';
 import { AIBadge, CatBadge, CatSym, Rich } from './common.js';
-import { cx, fmtStamp, scrollToId, uid } from '../util.js';
+import { cx, dot, fmtStamp, scrollToId, uid } from '../util.js';
 
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
@@ -274,6 +274,8 @@ function EditForm({ item, onDone, pid, deptOptions, locked }) {
   };
   const save = () => {
     const { id, ...patch } = f;
+    // 이어받은 설명을 고치면 이제 인계자 본인의 설명이다
+    if (f.desc !== item.desc) patch.descFrom = null;
     updateItem(pid, item.id, { ...patch, title: f.title.trim() || '이름 없는 업무' });
     onDone();
   };
@@ -316,10 +318,15 @@ function Evidence({ item, pos, open, setOpen }) {
   const hist = item.histRefs || [];
   const n = docs.length + hist.length;
   if (!n) return null;
+  // 근거 통계: 문서가 걸친 개월 수와 가장 최근 문서
+  const dated = docs.filter((d) => d.date).sort((a, b) => (a.date < b.date ? 1 : -1));
+  const monthCount = new Set(dated.map((d) => d.date.slice(0, 7))).size;
+  const latest = dated[0];
   return html`<div class="evidence">
     <button class="btn-text subtle" onClick=${() => setOpen(!open)} aria-expanded=${open}>
       <${Icon} name="file" size=${15} />근거 문서 ${n}건<${Icon} name="down" size=${15} cls=${cx('chev', open && 'up')} />
     </button>
+    ${latest && html`<span class="muted small ev-stat tnum" title=${`최근 문서: ${latest.title}`}>${monthCount}개월에 걸침 · 최근 ${dot(latest.date)} '${latest.title}'</span>`}
     <div class=${cx('collapse', open && 'open')}><div class="collapse-inner">
       <ul class="doc-list">
         ${hist.map((h) => html`<li><${Icon} name="layers" size=${15} /><span class="doc-title">역대 인계서 · ${h.label}</span></li>`)}
@@ -362,6 +369,7 @@ function ItemCard({ item, ctx, editing, setEditing }) {
       ? html`<${EditForm} item=${item} pid=${pid} deptOptions=${ctx.deptOptions} locked=${roots.length > 0} onDone=${() => setEditing(null)} />`
       : html`
         <p class="item-desc">${item.desc}</p>
+        ${item.descFrom && html`<p class="small muted desc-from"><${Icon} name="layers" size=${13} />${item.descFrom} 인계서 설명을 이어받았습니다${ctx.editable ? ' · 연필로 고쳐 주세요' : ''}</p>`}
         <${DeptLine} depts=${item.depts} />
         ${item.memo && html`<div class="memo"><${Icon} name="note" size=${16} /><div><span class="memo-label">인계자 메모</span><p>${item.memo}</p></div></div>`}
         <${Evidence} item=${item} pos=${pos} open=${open} setOpen=${setOpen} />`}

@@ -100,29 +100,31 @@ export function sortItems(items) {
   });
 }
 
-function describe(group, category, period, monthCount) {
-  const docs = [...group.docs].sort((a, b) => (a.date < b.date ? 1 : -1));
-  const types = [...countBy(docs.map((d) => d.type || docType(d.name || d.title)))]
-    .sort((a, b) => b[1] - a[1])
-    .map(([t, n]) => `${t} ${n}`)
-    .join(' · ');
-  const latest = docs[0];
-  const head =
-    category === 'special'
-      ? `${period}에 있었던 특이사항입니다.`
-      : category === 'event'
-        ? `${period}에 처리하는 업무입니다.`
-        : `${period}에 반복하는 업무입니다.`;
-  let text = `${head} 근무기간 중 ${monthCount}개월에 걸쳐 문서 ${docs.length}건(${types})이 확인되었습니다.`;
-  if (latest) text += ` 최근 문서는 '${latest.name || latest.title}'입니다.`;
-  return text;
+/**
+ * 역대 인계서에 같은 업무가 없을 때 쓰는 자동 설명 — 무슨 일인지는 인계자가 채운다.
+ * 문서 수·개월 수·최근 문서 같은 근거 통계는 설명에 넣지 않고 카드의 근거 문서 줄에 따로 보여 준다.
+ */
+function describe(category, period) {
+  if (category === 'special') return `${period}에 있었던 특이사항입니다. 무슨 일이 있었고 어떻게 조치했는지 적어 주세요.`;
+  if (category === 'event') return `${period}에 처리하는 업무입니다. 하는 일과 준비 시기를 적어 주세요.`;
+  return `${period}에 반복하는 업무입니다. 하는 일과 챙길 점을 적어 주세요.`;
+}
+
+/** 역대 인계서(최근 담당자부터)에서 같은 업무의 설명을 찾는다 */
+function inheritedDesc(history, key) {
+  for (const h of history) {
+    const it = h.items.find((x) => x.key === key && x.desc);
+    if (it) return { desc: it.desc, from: `${h.person.rank} ${h.person.name}` };
+  }
+  return null;
 }
 
 /**
  * 선택한 업무 폴더의 파일 + 근무기간 내 온나라 문서를 분석해 인계서 항목을 만든다.
  * 관계부서는 온나라 문서의 협조·수신 부서로 미리 채운다 (인계자가 고칠 수 있음).
+ * 설명은 역대 인계서(history, 최근 담당자부터)에 같은 업무가 있으면 그 설명을 이어받는다.
  */
-export function analyze({ files, onnara, folderIdxs, start, end }) {
+export function analyze({ files, onnara, folderIdxs, start, end, history = [] }) {
   const selected = files.filter((f) => folderIdxs.includes(f.folder));
   const excluded = selected.filter((f) => isExcluded(f.name));
   const included = selected.filter((f) => !isExcluded(f.name));
@@ -154,6 +156,7 @@ export function analyze({ files, onnara, folderIdxs, start, end }) {
     const months = category === 'routine' ? [...served].sort((a, b) => a - b) : moy;
     const week = category === 'routine' ? mode(g.docs.map((d) => weekLabel(+d.date.slice(8, 10)))) : null;
     const period = category === 'special' ? specialPeriod(...g.docs.map((d) => d.date)) : periodText(category, months, week);
+    const inherited = inheritedDesc(history, g.key);
     items.push({
       id: uid('it'),
       key: g.key,
@@ -161,7 +164,8 @@ export function analyze({ files, onnara, folderIdxs, start, end }) {
       title: g.title,
       months,
       period,
-      desc: describe(g, category, period, ymSet.size),
+      desc: inherited ? inherited.desc : describe(category, period),
+      descFrom: inherited ? inherited.from : null,
       depts: [...new Set(g.docs.flatMap((d) => d.coop || []))],
       docIds: [...g.docs].sort((a, b) => (a.date < b.date ? 1 : -1)).map((d) => d.id),
       important: false,
@@ -231,6 +235,7 @@ export function itemFromRec(rec) {
     months: rec.months,
     period: rec.period,
     desc: rec.desc,
+    descFrom: rec.holders[0]?.label.split(' (')[0] || null,
     depts: [...rec.depts],
     docIds: [],
     histRefs: rec.holders,
