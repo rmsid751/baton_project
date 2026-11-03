@@ -526,9 +526,10 @@ export const reviewerOf = (pid) => PEOPLE.find((p) => p.positionId === pid && p.
 export const positionsOfReviewer = (personId) => POSITIONS.filter((p) => p.def.reviewer.id === personId);
 
 export const ROLES = {
-  giver: { label: '인계하기', who: '전임자', badge: '인계자', desc: '업무 폴더로 인계서를 자동 작성해요' },
-  receiver: { label: '인수하기', who: '후임자', badge: '인수자', desc: '이 자리의 1년 업무를 한눈에 봐요' },
-  reviewer: { label: '입회하기', who: '부서장', badge: '입회자', desc: '인계인수에 입회하고 확인해요' },
+  // desc: [첫 줄, 둘째 줄] — 랜딩 카드에서 이 자리에서 줄을 바꾼다 (좁은 화면에서는 자연스럽게 줄바꿈)
+  giver: { label: '인계하기', who: '전임자', badge: '인계자', desc: ['업무 폴더로 인계서를', '자동 작성해요'] },
+  receiver: { label: '인수하기', who: '후임자', badge: '인수자', desc: ['이 자리의 1년 업무를', '한눈에 봐요'] },
+  reviewer: { label: '입회하기', who: '부서장', badge: '입회자', desc: ['부서원의 인계인수를', '입회하고 확인해요'] },
 };
 
 /** 파일이 분석 대상인지 (UI 표시용) */
