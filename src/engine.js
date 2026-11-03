@@ -101,20 +101,20 @@ export function sortItems(items) {
 }
 
 /**
- * 역대 인계서에 같은 업무가 없을 때 쓰는 자동 설명 — 무슨 일인지는 인계자가 채운다.
- * 문서 수·개월 수·최근 문서 같은 근거 통계는 설명에 넣지 않고 카드의 근거 문서 줄에 따로 보여 준다.
+ * 역대 인계서에 같은 업무가 없을 때의 임시 설명. 자동 작성 단계에서 AI가 근거 문서를 보고 바꿔 쓴다(descAuto).
+ * AI를 못 부르면 이 문장이 남는다. 문서 수·개월 수·최근 문서 같은 근거 통계는 카드의 근거 문서 줄에 따로 보여 준다.
  */
 function describe(category, period) {
-  if (category === 'special') return `${period}에 있었던 특이사항입니다. 무슨 일이 있었고 어떻게 조치했는지 적어 주세요.`;
-  if (category === 'event') return `${period}에 처리하는 업무입니다. 하는 일과 준비 시기를 적어 주세요.`;
-  return `${period}에 반복하는 업무입니다. 하는 일과 챙길 점을 적어 주세요.`;
+  if (category === 'special') return `${period}에 있었던 특이사항입니다.`;
+  if (category === 'event') return `${period}에 처리하는 업무입니다.`;
+  return `${period}에 반복하는 업무입니다.`;
 }
 
 /** 역대 인계서(최근 담당자부터)에서 같은 업무의 설명을 찾는다 */
 function inheritedDesc(history, key) {
   for (const h of history) {
     const it = h.items.find((x) => x.key === key && x.desc);
-    if (it) return { desc: it.desc, from: `${h.person.rank} ${h.person.name}` };
+    if (it) return it.desc;
   }
   return null;
 }
@@ -164,8 +164,8 @@ export function analyze({ files, onnara, folderIdxs, start, end, history = [] })
       title: g.title,
       months,
       period,
-      desc: inherited ? inherited.desc : describe(category, period),
-      descFrom: inherited ? inherited.from : null,
+      desc: inherited || describe(category, period),
+      descAuto: !inherited, // true면 자동 작성 단계에서 AI가 근거 문서를 보고 설명을 채운다
       depts: [...new Set(g.docs.flatMap((d) => d.coop || []))],
       docIds: [...g.docs].sort((a, b) => (a.date < b.date ? 1 : -1)).map((d) => d.id),
       important: false,
@@ -235,7 +235,6 @@ export function itemFromRec(rec) {
     months: rec.months,
     period: rec.period,
     desc: rec.desc,
-    descFrom: rec.holders[0]?.label.split(' (')[0] || null,
     depts: [...rec.depts],
     docIds: [],
     histRefs: rec.holders,

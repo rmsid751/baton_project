@@ -547,7 +547,6 @@ textarea.input { resize: vertical; line-height: 1.55; }
 mark.hit { background: rgba(242,180,90,.35); color: inherit; border-radius: 4px; padding: 0 1px; }
 .empty-row { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .edit-hint { display: flex; align-items: center; gap: 6px; margin: -4px 0 14px; }
-.desc-from { display: flex; align-items: center; gap: 5px; margin-top: 4px; }
 .evidence { display: flex; align-items: center; flex-wrap: wrap; column-gap: 10px; }
 .evidence > .collapse { flex-basis: 100%; }
 .ev-stat { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }

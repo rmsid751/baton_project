@@ -4,7 +4,7 @@ import { Icon } from '../icons.js';
 import { POSITION, giverOf, reviewerOf } from '../data/seed.js';
 import { analyze, isExcluded } from '../engine.js';
 import { approve, closeModal, getState, personLabel, reject, resetAll, saveGenerated, setTab, submit, toast, useStore, useUI } from '../store.js';
-import { briefCacheKey, briefingInput, streamAI } from '../ai.js';
+import { briefCacheKey, briefingInput, describeCacheKey, describeInput, streamAI } from '../ai.js';
 import { cx, dot, fmtStamp, stamp } from '../util.js';
 import { makeHandoverPdf } from '../pdf.js';
 
@@ -167,7 +167,23 @@ function AutoWrite() {
       setLines((l) => l.map((x, k) => (k === i ? { ...x, state: 'done' } : x)));
       setPct(((i + 1) / total) * 100);
     }
-    setLines((l) => [...l, { text: 'AI 인계 브리핑 작성 중…', state: 'run', ai: true }]);
+    // 역대 인계서에 없는 업무는 AI가 근거 문서를 보고 설명을 채운다
+    const fresh = result.items.filter((it) => it.descAuto);
+    if (fresh.length) {
+      setLines((l) => [...l, { text: `역대 인계서에 없는 업무 ${fresh.length}건 · AI가 근거 문서로 설명 작성 중…`, state: 'run', ai: true, key: 'desc' }]);
+      let ok = 0;
+      await Promise.all(fresh.map(async (it) => {
+        const input = describeInput(pid, it);
+        try {
+          const raw = (await streamAI({ kind: 'describe', input, cacheKey: describeCacheKey(input), onText: () => {} })).trim();
+          if (raw) { it.desc = raw; ok += 1; }
+        } catch { /* 못 부르면 임시 설명이 남는다 */ }
+        delete it.descAuto;
+      }));
+      if (!alive.current) return;
+      setLines((l) => l.map((x) => (x.key === 'desc' ? { ...x, state: ok === fresh.length ? 'done' : 'warn', text: ok === fresh.length ? `AI 업무 설명 작성 완료 (${ok}건)` : `AI 업무 설명 ${fresh.length - ok}건을 작성하지 못했습니다 (직접 고칠 수 있음)` } : x)));
+    }
+    setLines((l) => [...l, { text: 'AI 인계 브리핑 작성 중…', state: 'run', ai: true, key: 'brief' }]);
     const today = getState().today;
     const input = briefingInput(pid, result.items, { mode: 'person', today, moveDate: h.moveDate, person: personLabel(giver) });
     let briefing;
@@ -178,7 +194,7 @@ function AutoWrite() {
       briefing = { status: 'error', at: stamp(today) };
     }
     if (!alive.current) return;
-    setLines((l) => l.map((x) => (x.ai ? { ...x, state: briefing.status === 'ok' ? 'done' : 'warn', text: briefing.status === 'ok' ? 'AI 인계 브리핑 작성 완료' : 'AI 브리핑을 불러오지 못했습니다 (원페이지에서 다시 시도)' } : x)));
+    setLines((l) => l.map((x) => (x.key === 'brief' ? { ...x, state: briefing.status === 'ok' ? 'done' : 'warn', text: briefing.status === 'ok' ? 'AI 인계 브리핑 작성 완료' : 'AI 브리핑을 불러오지 못했습니다 (원페이지에서 다시 시도)' } : x)));
     setPct(100);
     setDone(true);
     await sleep(800);

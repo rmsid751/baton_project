@@ -274,8 +274,6 @@ function EditForm({ item, onDone, pid, deptOptions, locked }) {
   };
   const save = () => {
     const { id, ...patch } = f;
-    // 이어받은 설명을 고치면 이제 인계자 본인의 설명이다
-    if (f.desc !== item.desc) patch.descFrom = null;
     updateItem(pid, item.id, { ...patch, title: f.title.trim() || '이름 없는 업무' });
     onDone();
   };
@@ -369,7 +367,6 @@ function ItemCard({ item, ctx, editing, setEditing }) {
       ? html`<${EditForm} item=${item} pid=${pid} deptOptions=${ctx.deptOptions} locked=${roots.length > 0} onDone=${() => setEditing(null)} />`
       : html`
         <p class="item-desc">${item.desc}</p>
-        ${item.descFrom && html`<p class="small muted desc-from"><${Icon} name="layers" size=${13} />${item.descFrom} 인계서 설명을 이어받았습니다${ctx.editable ? ' · 연필로 고쳐 주세요' : ''}</p>`}
         <${DeptLine} depts=${item.depts} />
         ${item.memo && html`<div class="memo"><${Icon} name="note" size=${16} /><div><span class="memo-label">인계자 메모</span><p>${item.memo}</p></div></div>`}
         <${Evidence} item=${item} pos=${pos} open=${open} setOpen=${setOpen} />`}

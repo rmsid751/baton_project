@@ -166,6 +166,22 @@ export function answerInput(pid, { item, question, items, giver, giverPeriod }) 
   return lines.join('\n').slice(0, 38000);
 }
 
+/** 역대 인계서에 없는 업무의 설명을 근거 문서로 쓰게 하는 입력 (항목 id는 넣지 않아 미리 작성한 설명과 맞춘다) */
+export function describeInput(pid, item) {
+  const pos = POSITION[pid];
+  const docs = (item.docIds || []).slice(0, 8).map((id) => docTitle(pos, id)).filter(Boolean);
+  return [
+    `직책: ${pos.title} (${pos.unit} ${pos.dept})`,
+    `업무: (${CATS[item.category]?.label || '업무'}) ${item.title}`,
+    `시기: ${item.period}`,
+    item.depts?.length ? `관계부서: ${item.depts.join(', ')}` : '',
+    '',
+    '[근거 문서]',
+    ...docs,
+  ].filter((l) => l !== null).join('\n');
+}
+
+export const describeCacheKey = (input) => `desc:${hash(input)}`;
 export const briefCacheKey = (input) => `brief:${hash(input)}`;
 export const answerCacheKey = (pid, itemId, q) => `ans:${pid}:${itemId}:${hash(q.trim().replace(/\s+/g, ' '))}`;
 export const giverPeriodLabel = (p) => periodLabel(p.start, p.end);
