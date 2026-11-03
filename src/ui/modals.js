@@ -1,4 +1,4 @@
-// 모달 — 자동 작성(단계형), 상신, 반려, 리셋
+// 모달 — 자동 작성(단계형), 입회요청, 반려, 입회완료, 리셋
 import { html, useEffect, useMemo, useRef, useState } from '../lib.js';
 import { Icon } from '../icons.js';
 import { POSITION, giverOf, reviewerOf } from '../data/seed.js';
@@ -266,7 +266,7 @@ function AutoWrite() {
 // ───────── 인계인수서 PDF ─────────
 const kb = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)}MB` : `${Math.round(n / 1024)}KB`);
 
-/** 만든 PDF 미리보기 + 다운로드 (상신 2단계와 PDF 보기 창이 함께 쓴다) */
+/** 만든 PDF 미리보기 + 다운로드 (입회요청 2단계와 PDF 보기 창이 함께 쓴다) */
 function PdfPreview({ pdf, onRetry }) {
   if (pdf.phase === 'making') return html`<div class="pdf-making"><span class="spin"></span>인계인수서 PDF를 만드는 중…</div>`;
   if (pdf.phase === 'error') {
@@ -309,7 +309,7 @@ function usePdf() {
   return [pdf, make];
 }
 
-/** 온나라 첨부 PDF 보기 — 상신 시점에 저장한 내용으로 같은 PDF를 다시 만든다 */
+/** 온나라 첨부 PDF 보기 — 입회요청 시점에 저장한 내용으로 같은 PDF를 다시 만든다 */
 function PdfViewModal() {
   const s = useStore();
   const pid = s.session.positionId;
@@ -325,7 +325,7 @@ function PdfViewModal() {
   useEffect(() => { open(); }, []);
   return html`<${Modal} size="xl" label="온나라 첨부 PDF" onClose=${closeModal}>
     <div class="modal-head">
-      <p class="eyebrow">온나라 첨부 문서${att ? ` · ${fmtStamp(att.at)} 상신` : ''}</p>
+      <p class="eyebrow">온나라 첨부 문서${att ? ` · ${fmtStamp(att.at)} 입회요청` : ''}</p>
       <h2 class="h2">인계인수서 PDF</h2>
     </div>
     <div class="modal-body">
@@ -335,7 +335,7 @@ function PdfViewModal() {
   </${Modal}>`;
 }
 
-// ───────── 상신 ─────────
+// ───────── 입회요청 ─────────
 function SubmitModal() {
   const s = useStore();
   const pid = s.session.positionId;
@@ -355,31 +355,31 @@ function SubmitModal() {
     if (!receiver || pdf.phase !== 'ready') return;
     submit(pid, receiver, { filename: pdf.filename, pages: pdf.pages, size: pdf.size });
     closeModal();
-    toast(again ? '재상신했습니다 · 인계인수서 PDF를 첨부해 온나라에 함께 상신했습니다' : '작성완료 · 인계인수서 PDF를 첨부해 온나라에 함께 상신했습니다', 'ok');
+    toast(again ? '입회를 다시 요청했습니다 · 인계인수서 PDF를 첨부해 온나라로 보냈습니다' : '작성완료 · 인계인수서 PDF를 첨부해 온나라로 입회를 요청했습니다', 'ok');
   };
   if (step === 2) {
     return html`<${Modal} size="xl" label="인계인수서 PDF 확인" onClose=${closeModal}>
       <div class="modal-head">
-        <p class="eyebrow">${again ? '재상신' : '작성완료 및 온나라 상신'} · 2/2</p>
+        <p class="eyebrow">${again ? '입회 재요청' : '작성완료 및 입회요청'} · 2/2</p>
         <h2 class="h2">인계인수서 PDF 확인</h2>
       </div>
       <div class="modal-body">
         <${PdfPreview} pdf=${pdf} onRetry=${makePdf} />
-        <p class="note"><${Icon} name="info" size=${16} />이 PDF를 첨부해 온나라에 인계인수서를 함께 상신합니다. 내용을 확인한 뒤 [확인 및 상신]을 눌러 주세요.</p>
+        <p class="note"><${Icon} name="info" size=${16} />이 PDF를 첨부해 온나라로 입회를 요청합니다. 내용을 확인한 뒤 [확인 및 입회요청]을 눌러 주세요.</p>
         <div class="modal-actions">
           <button class="btn-text" onClick=${() => setStep(1)}><${Icon} name="arrowLeft" size=${16} />이전</button>
           <span class="grow"></span>
           <button class="btn secondary" onClick=${closeModal}>취소</button>
-          <button class="btn primary" disabled=${pdf.phase !== 'ready'} onClick=${go}><${Icon} name="send" size=${17} />확인 및 상신</button>
+          <button class="btn primary" disabled=${pdf.phase !== 'ready'} onClick=${go}><${Icon} name="send" size=${17} />확인 및 입회요청</button>
         </div>
       </div>
     </${Modal}>`;
   }
 
-  return html`<${Modal} label="작성완료 및 온나라 상신" onClose=${closeModal}>
+  return html`<${Modal} label="작성완료 및 입회요청" onClose=${closeModal}>
     <div class="modal-head">
-      <p class="eyebrow">${again ? '재상신' : '작성완료 및 온나라 상신'} · 1/2</p>
-      <h2 class="h2">${again ? '재상신' : '작성완료 및 온나라 상신'}</h2>
+      <p class="eyebrow">${again ? '입회 재요청' : '작성완료 및 입회요청'} · 1/2</p>
+      <h2 class="h2">${again ? '입회 재요청' : '작성완료 및 입회요청'}</h2>
     </div>
     <div class="modal-body">
       <p class="field-label">인수자 선택 <span class="req">필수</span></p>
@@ -389,9 +389,9 @@ function SubmitModal() {
           <span><strong>${c.rank} ${c.name}</strong><span class="small muted">${c.note}</span></span>
         </button>`)}
       </div>
-      ${sel >= 0 && html`<p class="approver-line fade-in"><${Icon} name="clipboard" size=${15} /><span class="muted">결재자</span>
+      ${sel >= 0 && html`<p class="approver-line fade-in"><${Icon} name="clipboard" size=${15} /><span class="muted">입회자</span>
         <strong>${personLabel(reviewerOf(pid))}</strong><span class="muted">${reviewerOf(pid).title}</span></p>`}
-      <p class="note"><${Icon} name="info" size=${16} />온나라에도 인계인수서가 함께 상신됩니다. 다음 단계에서 첨부할 PDF를 확인합니다.</p>
+      <p class="note"><${Icon} name="info" size=${16} />입회자에게 온나라로 입회를 요청합니다. 다음 단계에서 첨부할 인계인수서 PDF를 확인합니다.</p>
       <div class="modal-actions">
         <span class="grow"></span>
         <button class="btn secondary" onClick=${closeModal}>취소</button>
@@ -433,13 +433,13 @@ function ApproveModal() {
   const go = () => {
     approve(pid);
     closeModal();
-    toast('결재했습니다 · 온나라 인수인계함에서도 결재 처리되었습니다', 'ok');
+    toast('입회완료했습니다 · 온나라 인수인계함에서도 입회완료로 처리되었습니다', 'ok');
   };
-  return html`<${Modal} label="결재" onClose=${closeModal}>
-    <div class="modal-head"><h2 class="h2">결재</h2></div>
+  return html`<${Modal} label="입회완료" onClose=${closeModal}>
+    <div class="modal-head"><h2 class="h2">입회완료</h2></div>
     <div class="modal-body">
-      <p class="lead">${POSITION[pid].title} 인계서${h.receiver ? ` (인수자 ${h.receiver.rank} ${h.receiver.name})` : ''}를 결재합니다.</p>
-      <p class="note"><${Icon} name="info" size=${16} />온나라 인수인계함에서도 결재 처리됩니다. 결재하시겠습니까?</p>
+      <p class="lead">${POSITION[pid].title} 인계서${h.receiver ? ` (인수자 ${h.receiver.rank} ${h.receiver.name})` : ''}의 인계인수 입회를 완료합니다.</p>
+      <p class="note"><${Icon} name="info" size=${16} />온나라 인수인계함에서도 입회완료로 처리됩니다. 입회를 완료하시겠습니까?</p>
       <div class="modal-actions">
         <span class="grow"></span>
         <button class="btn secondary" onClick=${closeModal}>취소</button>

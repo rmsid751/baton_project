@@ -1,4 +1,4 @@
-// 인계인수서 PDF — 온나라 상신 첨부용
+// 인계인수서 PDF — 온나라 입회요청 첨부용
 // html2pdf.js(html2canvas + jsPDF)로 화면 글꼴(Pretendard) 그대로 A4 PDF를 만든다. 라이브러리는 필요할 때만 불러온다.
 import { POSITION, giverOf, reviewerOf } from './data/seed.js';
 import { CATS, CAT_ORDER, deptRows, onnaraDeptCounts, sortItems } from './engine.js';
@@ -93,7 +93,7 @@ function buildHtml({ pid, handover, receiver, today }) {
         <div style="font-size:22pt;font-weight:800;letter-spacing:0.3em;">인계인수서</div>
       </td>
       <td style="width:240px;padding:0;"><table style="border-collapse:collapse;margin-left:auto;"><tr>
-        ${signBox('인계자', `${g.rank} ${g.name}`)}${signBox('인수자', receiver ? `${receiver.rank} ${receiver.name}` : '')}${signBox('결재', `${v.rank} ${v.name}`)}
+        ${signBox('인계자', `${g.rank} ${g.name}`)}${signBox('인수자', receiver ? `${receiver.rank} ${receiver.name}` : '')}${signBox('입회자', `${v.rank} ${v.name}`)}
       </tr></table></td>
     </tr></table>
 
@@ -101,7 +101,7 @@ function buildHtml({ pid, handover, receiver, today }) {
       <tr><th style="${th}width:90px;">소속</th><td style="${td}">${esc(pos.unit)} ${esc(pos.dept)}</td><th style="${th}width:90px;">직책</th><td style="${td}">${esc(pos.title)}</td></tr>
       <tr><th style="${th}">인계자</th><td style="${td}">${esc(g.rank)} ${esc(g.name)}</td><th style="${th}">인수자</th><td style="${td}">${receiver ? `${esc(receiver.rank)} ${esc(receiver.name)}` : '—'}</td></tr>
       <tr><th style="${th}">근무기간</th><td style="${td}">${dot(g.start)} ~ ${dot(g.end)} (${periodLabel(g.start, g.end)})</td><th style="${th}">인사이동일</th><td style="${td}">${dot(handover.moveDate)}</td></tr>
-      <tr><th style="${th}">결재권자</th><td style="${td}">${esc(v.rank)} ${esc(v.name)} (${esc(v.title)})</td><th style="${th}">작성일</th><td style="${td}">${dot(today)}</td></tr>
+      <tr><th style="${th}">입회자</th><td style="${td}">${esc(v.rank)} ${esc(v.name)} (${esc(v.title)})</td><th style="${th}">작성일</th><td style="${td}">${dot(today)}</td></tr>
       <tr><th style="${th}">업무 현황</th><td style="${td}" colspan="3">총 ${items.length}건 (${counts}) · 중요 ${items.filter((i) => i.important).length}건 · 관계부서 ${depts.length}곳</td></tr>
     </table>
 

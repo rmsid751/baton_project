@@ -59,7 +59,7 @@ export function TopBar() {
       <button class="brand as-btn" onClick=${goHome} title="처음으로">BATON</button>
       <span class="tb-sep"></span>
       <span class=${`role-badge role-${s.session.role}`}>${ROLES[s.session.role].badge}</span>
-      <span class="tb-user"><strong>${person.rank} ${person.name}</strong><span class="tb-pos">${pos.title}${person.title && s.session.role === 'reviewer' ? ` · ${person.title}` : ''}</span></span>
+      <span class="tb-user"><strong>${person.rank} ${person.name}</strong><span class="tb-pos">${s.session.role === 'reviewer' ? `${person.title} · ${pos.title} 입회` : pos.title}</span></span>
     </div>
     <div class="tb-right">
       <button class="btn-text home" onClick=${goHome}><${Icon} name="home" size=${18} /><span>처음으로</span></button>

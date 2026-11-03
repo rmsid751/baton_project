@@ -6,9 +6,9 @@ import { CATS } from '../engine.js';
 export const STATUS = {
   none: { label: '인계서 생성 전', cls: 'st-none' },
   draft: { label: '초안', cls: 'st-draft' },
-  pending: { label: '결재대기', cls: 'st-pending' },
+  pending: { label: '입회대기', cls: 'st-pending' },
   rejected: { label: '반려', cls: 'st-rejected' },
-  approved: { label: '결재완료', cls: 'st-approved' },
+  approved: { label: '입회완료', cls: 'st-approved' },
 };
 
 export function StatusBadge({ status }) {

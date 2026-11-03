@@ -4,8 +4,8 @@ import { DEFAULT_TODAY, MOVE_DATE, POSITION, POSITIONS, PERSON, giverOf, receive
 import { addDays, stamp, uid } from './util.js';
 import { CATS } from './engine.js';
 
-// v2: 관계부서를 분류에서 업무 항목의 칸으로 옮기고 분기별·반기별 루틴을 추가함
-const KEY = 'baton.state.v2';
+// v3: 근무기간·인사이동일 변경, 상신·결재 → 입회요청·입회완료
+const KEY = 'baton.state.v3';
 
 function blankHandover(p) {
   return {
@@ -120,12 +120,23 @@ export function isVisibleTo(role, h) {
 export function isEditable(s, h) {
   return s.session.role === 'giver' && (h.status === 'draft' || h.status === 'rejected') && !isReadOnly(s, h);
 }
+/** 반려 뒤 인계자가 보완하는 동안 인수자·입회자는 마지막으로 입회요청한 내용을 본다 */
+export function showsSnapshot(role, h) {
+  return role !== 'giver' && h.status === 'rejected' && !!h.attachment?.snapshot;
+}
+export function viewItems(role, h) {
+  return showsSnapshot(role, h) ? h.attachment.snapshot.items : h.items;
+}
+/** 질문이 달린 항목은 지울 수 없다 (질문 스레드와 알림 바로가기가 사라지지 않게) */
+export function hasQuestions(s, pid, itemId) {
+  return s.qa.some((q) => q.positionId === pid && q.itemId === itemId);
+}
 
 // ───────── 동작 ─────────
-export function enter(role, personId) {
+export function enter(role, personId, positionId) {
   const person = PERSON[personId];
   setState((s) => {
-    s.session = { role, personId, positionId: person.positionId };
+    s.session = { role, personId, positionId: positionId || person.positionId };
     s.tab = 'current';
   });
   setUI({ modal: null, notifOpen: false, highlight: null });
@@ -170,7 +181,7 @@ export function saveGenerated(pid, { folders, result, briefing }) {
     h.items = result.items;
     h.ignoredRecs = [];
     h.briefing = briefing;
-    h.attachment = null; // 새로 작성한 초안에는 이전 상신 첨부가 없다
+    h.attachment = null; // 새로 작성한 초안에는 이전 입회요청 첨부가 없다
     h.updatedAt = stamp(s.today);
     h.log.push({ action: '자동 작성', by: personLabel(giverOf(pid)), at: stamp(s.today) });
   });
@@ -214,11 +225,13 @@ export function toggleImportant(pid, itemId) {
 }
 
 export function deleteItem(pid, itemId) {
+  if (hasQuestions(state, pid, itemId)) return false;
   setState((s) => {
     const h = s.handovers[pid];
     h.items = h.items.filter((i) => i.id !== itemId);
     touch(s, h);
   });
+  return true;
 }
 
 export function ignoreRec(pid, key) {
@@ -229,7 +242,7 @@ export const personLabel = (p) => (p ? `${p.rank} ${p.name}` : '');
 
 /**
  * attachment: 온나라에 첨부한 인계인수서 PDF 정보 { filename, pages, size }
- * PDF 파일(약 2.5MB)은 저장하지 않고, 상신 시점의 내용(snapshot)을 저장해 열 때마다 같은 PDF를 다시 만든다.
+ * PDF 파일(약 2.5MB)은 저장하지 않고, 입회요청 시점의 내용(snapshot)을 저장해 열 때마다 같은 PDF를 다시 만든다.
  */
 export function submit(pid, receiver, attachment = null) {
   setState((s) => {
@@ -245,17 +258,25 @@ export function submit(pid, receiver, attachment = null) {
       snapshot: { items: structuredClone(h.items), briefing: h.briefing ? { ...h.briefing } : null, moveDate: h.moveDate, receiver: { ...receiver }, today: s.today },
     } : null;
     if (!h.firstSubmittedAt) h.firstSubmittedAt = at;
-    h.log.push({ action: again ? '재상신' : '상신', by: personLabel(giverOf(pid)), reason: `인수자 ${receiver.rank} ${receiver.name} 지정 · 온나라 상신${attachment ? ` · 첨부 ${attachment.filename}` : ''}`, at });
+    const verb = again ? '입회 재요청' : '입회요청';
+    h.log.push({ action: verb, by: personLabel(giverOf(pid)), reason: `인수자 ${receiver.rank} ${receiver.name} 지정 · 온나라 입회요청${attachment ? ` · 첨부 ${attachment.filename}` : ''}`, at });
+    const base = { positionId: pid, type: 'approval', path: `${posTitle(pid)} > 인계서`, author: personLabel(giverOf(pid)) };
     notify(s, {
+      ...base,
       toRole: 'reviewer',
-      positionId: pid,
-      type: 'approval',
-      title: `[BATON] ${posTitle(pid)} 인계서가 ${again ? '재상신' : '상신'}되었습니다`,
-      path: `${posTitle(pid)} > 인계서`,
-      author: personLabel(giverOf(pid)),
+      title: `[BATON] ${posTitle(pid)} 인계서 ${verb}이 왔습니다`,
       body: [
         { label: '인수자', text: `${receiver.rank} ${receiver.name}` },
         ...(attachment ? [{ label: '첨부', text: `${attachment.filename} (${attachment.pages}쪽)` }] : []),
+      ],
+    });
+    notify(s, {
+      ...base,
+      toRole: 'receiver',
+      title: again ? `[BATON] ${posTitle(pid)} 인계서가 보완되어 다시 입회요청되었습니다` : `[BATON] ${posTitle(pid)} 인계서를 이제 볼 수 있습니다`,
+      body: [
+        { label: '입회자', text: personLabel(reviewerOf(pid)) },
+        { label: '전임자 질문 가능', text: `~ ${windowEnd(h).replaceAll('-', '.')}` },
       ],
     });
   });
@@ -266,12 +287,14 @@ export function approve(pid) {
     const h = s.handovers[pid];
     h.status = 'approved';
     const by = personLabel(reviewerOf(pid));
-    h.log.push({ action: '결재', by, at: stamp(s.today) });
-    notify(s, {
-      toRole: 'giver', positionId: pid, type: 'approval',
-      title: `[BATON] ${posTitle(pid)} 인계서가 결재되었습니다`,
-      path: `${posTitle(pid)} > 인계서`, author: by, body: [],
-    });
+    h.log.push({ action: '입회완료', by, at: stamp(s.today) });
+    for (const toRole of ['giver', 'receiver']) {
+      notify(s, {
+        toRole, positionId: pid, type: 'approval',
+        title: `[BATON] ${posTitle(pid)} 인계인수 입회가 완료되었습니다`,
+        path: `${posTitle(pid)} > 인계서`, author: by, body: [],
+      });
+    }
   });
 }
 
@@ -286,6 +309,12 @@ export function reject(pid, reason) {
       title: `[BATON] ${posTitle(pid)} 인계서가 반려되었습니다`,
       path: `${posTitle(pid)} > 인계서`, author: by,
       body: [{ label: '반려 사유', text: reason }],
+    });
+    notify(s, {
+      toRole: 'receiver', positionId: pid, type: 'reject',
+      title: `[BATON] ${posTitle(pid)} 인계서가 반려되어 인계자가 보완 중입니다`,
+      path: `${posTitle(pid)} > 인계서`, author: by,
+      body: [{ label: '반려 사유', text: reason }, { label: '안내', text: '보완이 끝날 때까지 마지막으로 입회요청된 내용이 보입니다' }],
     });
   });
 }

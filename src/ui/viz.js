@@ -218,9 +218,9 @@ export function DeptTable({ rows, onPick }) {
 
 export function CompareTable({ rows, compact }) {
   return html`<div class="table-wrap"><table class="tbl">
-    <thead><tr><th>담당자</th>${!compact && html`<th>근무기간</th>`}<th class="num">항목</th><th class="num">★</th><th class="num">질문</th>${!compact && html`<th>결재완료일</th>`}</tr></thead>
+    <thead><tr><th>담당자</th>${!compact && html`<th>근무기간</th>`}<th class="num">항목</th><th class="num">★</th><th class="num">질문</th>${!compact && html`<th>입회완료일</th>`}</tr></thead>
     <tbody>
-      ${rows.map((r) => html`<tr key=${r.id} class=${r.current ? 'current-row' : ''} title=${`${r.period} · ${r.approvedAt ? `결재완료 ${dot(r.approvedAt)}` : '결재 전'}`}>
+      ${rows.map((r) => html`<tr key=${r.id} class=${r.current ? 'current-row' : ''} title=${`${r.period} · ${r.approvedAt ? `입회완료 ${dot(r.approvedAt)}` : '입회 전'}`}>
         <td class="strong nowrap">${r.name}${r.current && !compact && html` <span class="mini-badge blue">현재</span>`}</td>
         ${!compact && html`<td class="tnum nowrap">${r.period}</td>`}
         <td class="num tnum">${r.items}</td>
