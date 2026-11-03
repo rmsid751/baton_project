@@ -1,0 +1,7 @@
+{
+  "name": "baton",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "BATON — 인계인수 체계 프로토타입 (정적 SPA + Gemini 중계 함수 1개)"
+}

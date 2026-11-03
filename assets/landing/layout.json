@@ -1,0 +1,119 @@
+{
+  "canvas": {
+    "w": 1672,
+    "h": 941
+  },
+  "layers": [
+    {
+      "file": "obj-chart",
+      "x": 566,
+      "y": 67,
+      "w": 364,
+      "h": 261,
+      "left_pct": 33.85,
+      "top_pct": 7.12,
+      "width_pct": 21.77
+    },
+    {
+      "file": "obj-folder",
+      "x": 132,
+      "y": 101,
+      "w": 338,
+      "h": 264,
+      "left_pct": 7.89,
+      "top_pct": 10.73,
+      "width_pct": 20.22
+    },
+    {
+      "file": "fx-alert-lines",
+      "x": 1243,
+      "y": 154,
+      "w": 140,
+      "h": 150,
+      "left_pct": 74.34,
+      "top_pct": 16.37,
+      "width_pct": 8.37
+    },
+    {
+      "file": "char-receiver",
+      "x": 727,
+      "y": 245,
+      "w": 634,
+      "h": 662,
+      "left_pct": 43.48,
+      "top_pct": 26.04,
+      "width_pct": 37.92
+    },
+    {
+      "file": "obj-checklist",
+      "x": 1362,
+      "y": 271,
+      "w": 272,
+      "h": 238,
+      "left_pct": 81.46,
+      "top_pct": 28.8,
+      "width_pct": 16.27
+    },
+    {
+      "file": "char-giver",
+      "x": 137,
+      "y": 331,
+      "w": 648,
+      "h": 433,
+      "left_pct": 8.19,
+      "top_pct": 35.18,
+      "width_pct": 38.76
+    },
+    {
+      "file": "obj-donut",
+      "x": 1314,
+      "y": 544,
+      "w": 302,
+      "h": 242,
+      "left_pct": 78.59,
+      "top_pct": 57.81,
+      "width_pct": 18.06
+    },
+    {
+      "file": "obj-calendar",
+      "x": 71,
+      "y": 570,
+      "w": 209,
+      "h": 208,
+      "left_pct": 4.25,
+      "top_pct": 60.57,
+      "width_pct": 12.5
+    }
+  ],
+  "eyes_approx": {
+    "note": "캔버스 좌표 기준 대략값(가로 1672 x 세로 941). 개발 시 미리보기로 조정",
+    "char-giver": [
+      {
+        "cx": 497,
+        "cy": 455,
+        "rx": 16,
+        "ry": 14
+      },
+      {
+        "cx": 572,
+        "cy": 455,
+        "rx": 16,
+        "ry": 14
+      }
+    ],
+    "char-receiver": [
+      {
+        "cx": 1081,
+        "cy": 410,
+        "rx": 16,
+        "ry": 30
+      },
+      {
+        "cx": 1162,
+        "cy": 420,
+        "rx": 16,
+        "ry": 30
+      }
+    ]
+  }
+}
