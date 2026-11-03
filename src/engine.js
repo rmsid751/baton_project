@@ -7,7 +7,7 @@ export const CATS = {
   quarterly: { label: '분기별 루틴', short: '분기별', sym: '◔' }, // 화면에서는 CatSym이 1/4원을 그림
   semiannual: { label: '반기별 루틴', short: '반기별', sym: '◐' },
   event: { label: '연간·특별 이벤트', short: '이벤트', sym: '▲' },
-  special: { label: '특이사항', short: '특이', sym: '◆' },
+  special: { label: '특이사항', short: '특이사항', sym: '◆' },
 };
 export const CAT_ORDER = ['routine', 'quarterly', 'semiannual', 'event', 'special'];
 
