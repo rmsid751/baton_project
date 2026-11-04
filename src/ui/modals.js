@@ -303,14 +303,20 @@ function PdfPreview({ pdf, onRetry }) {
   return html`<iframe class="pdf-frame fade-in" src=${pdf.url} title="인계인수서 PDF 미리보기"></iframe>`;
 }
 
-/** PDF 파일 정보·다운로드·새 창으로 보기 (창 아래 버튼 줄 왼쪽에 둔다) */
-function PdfFile({ pdf }) {
-  return pdf.phase === 'ready' && html`<div class="pdf-file fade-in">
+/** PDF 창 제목 줄: 왼쪽 제목, 오른쪽 파일 정보·다운로드·새 창으로 보기 */
+function PdfHead({ eyebrow, title, pdf }) {
+  return html`<div class="modal-head pdf-head">
+    <div class="pdf-head-title">
+      <p class="eyebrow">${eyebrow}</p>
+      <h2 class="h2">${title}</h2>
+    </div>
+    ${pdf.phase === 'ready' && html`<div class="pdf-file fade-in">
       <span class="pdf-ic sm">PDF</span>
       <span class="pdf-meta" title=${pdf.filename}><strong>${pdf.filename}</strong><span class="small muted">${pdf.pages}쪽 · ${kb(pdf.size)}</span></span>
       <a class="btn-text sm" href=${pdf.url} download=${pdf.filename}><${Icon} name="file" size=${15} />다운로드</a>
       <a class="btn-text sm" href=${pdf.url} target="_blank" rel="noopener">새 창으로 보기</a>
-    </div>`;
+    </div>`}
+  </div>`;
 }
 
 /** PDF를 만들어 blob 주소를 관리하는 훅 (창을 닫으면 주소 해제) */
@@ -351,13 +357,10 @@ function PdfViewModal() {
   });
   useEffect(() => { open(); }, []);
   return html`<${Modal} size="xl" className="pdf-modal" label="온나라 첨부 PDF" onClose=${closeModal}>
-    <div class="modal-head">
-      <p class="eyebrow">온나라 첨부 문서${att ? ` · ${fmtStamp(att.at)} 입회요청` : ''}</p>
-      <h2 class="h2">인계인수서 PDF</h2>
-    </div>
+    <${PdfHead} eyebrow=${`온나라 첨부 문서${att ? ` · ${fmtStamp(att.at)} 입회요청` : ''}`} title="인계인수서 PDF" pdf=${pdf} />
     <div class="modal-body">
       ${att?.snapshot ? html`<${PdfPreview} pdf=${pdf} onRetry=${open} />` : html`<p class="muted">첨부 문서 내용을 찾을 수 없습니다.</p>`}
-      <div class="modal-actions"><${PdfFile} pdf=${pdf} /><span class="grow"></span><button class="btn secondary" onClick=${closeModal}>닫기</button></div>
+      <div class="modal-actions"><span class="grow"></span><button class="btn secondary" onClick=${closeModal}>닫기</button></div>
     </div>
   </${Modal}>`;
 }
@@ -386,16 +389,12 @@ function SubmitModal() {
   };
   if (step === 2) {
     return html`<${Modal} size="xl" className="pdf-modal" label="인계인수서 PDF 확인" onClose=${closeModal}>
-      <div class="modal-head">
-        <p class="eyebrow">${again ? '입회 재요청' : '작성완료 및 입회요청'} · 2/2</p>
-        <h2 class="h2">인계인수서 PDF 확인</h2>
-      </div>
+      <${PdfHead} eyebrow=${`${again ? '입회 재요청' : '작성완료 및 입회요청'} · 2/2`} title="인계인수서 PDF 확인" pdf=${pdf} />
       <div class="modal-body">
         <${PdfPreview} pdf=${pdf} onRetry=${makePdf} />
         <p class="note"><${Icon} name="info" size=${16} />이 PDF를 첨부해 온나라로 입회를 요청합니다. 내용을 확인한 뒤 [확인 및 입회요청]을 눌러 주세요.</p>
         <div class="modal-actions">
           <button class="btn-text" onClick=${() => setStep(1)}><${Icon} name="arrowLeft" size=${16} />이전</button>
-          <${PdfFile} pdf=${pdf} />
           <span class="grow"></span>
           <button class="btn secondary" onClick=${closeModal}>취소</button>
           <button class="btn primary" disabled=${pdf.phase !== 'ready'} onClick=${go}><${Icon} name="send" size=${17} />확인 및 입회요청</button>
