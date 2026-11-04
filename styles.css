@@ -340,6 +340,13 @@ textarea.input { resize: vertical; line-height: 1.55; }
 .ai-note.inline { margin: 0; font-size: 12px; }
 .brief-card .brief-body { gap: 0; }
 .brief-card .brief-line { font-size: 14px; line-height: 1.5; }
+.brief-card.closed { padding: 9px 16px 9px 20px; }
+.brief-card.closed .ai-head { margin: 0; flex-wrap: nowrap; }
+.brief-preview { flex: 1; min-width: 0; text-align: left; font-size: 14px; color: var(--ink-700); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 2px 4px; border-radius: 6px; }
+.brief-preview:hover { color: var(--ink-900); }
+.brief-toggle { flex: none; }
+.brief-toggle svg { transition: transform .2s var(--ease); }
+.brief-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
 .map-card { position: relative; }
 .dash-main { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 14px; }
 .dash-left, .dash-right { display: flex; flex-direction: column; gap: 14px; min-width: 0; min-height: 0; }

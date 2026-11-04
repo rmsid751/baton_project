@@ -141,16 +141,27 @@ function Briefing({ view, mode, canRegen, pid }) {
   } else {
     body = html`<div class="brief-body"><${RichLines} text=${b.text} /></div>`;
   }
-  return html`<section class="card ai-card brief-card">
+  // 기본은 접어 두고 첫 문장만 한 줄로 보여 준다. 다시 요약 중에는 펼친다.
+  const open = !!ui.briefOpen || !!stream;
+  const preview = b?.status === 'error' || !b?.text
+    ? (b?.reason === 'quota' ? AI_QUOTA_MSG : 'AI 응답을 불러오지 못했습니다.')
+    : b.text.split('\n').map((l) => l.replace(/\*\*/g, '').replace(/^\s*[-•*]\s+/, '').trim()).find(Boolean);
+  const toggle = () => setUI({ briefOpen: !ui.briefOpen });
+  return html`<section class=${cx('card ai-card brief-card', !open && 'closed')}>
     <div class="ai-head">
       <${AIBadge} label="AI 요약" />
       <h2 class="h3">${mode === 'aggregate' ? '역대 인계 브리핑' : 'AI 인계 브리핑'}</h2>
-      ${b?.at && !stream && html`<span class="muted small tnum">${fmtStamp(b.at)} 생성</span>`}
-      <span class="grow"></span>
-      <span class="ai-note inline">인계서를 바탕으로 AI가 작성했습니다. 사실과 다를 수 있습니다.</span>
-      ${canRegen && !stream && html`<button class="btn-text sm" onClick=${() => regenerateBriefing(pid)}><${Icon} name="refresh" size=${15} />다시 요약</button>`}
+      ${open
+        ? html`${b?.at && !stream && html`<span class="muted small tnum">${fmtStamp(b.at)} 생성</span>`}
+          <span class="grow"></span>
+          <span class="ai-note inline">인계서를 바탕으로 AI가 작성했습니다. 사실과 다를 수 있습니다.</span>
+          ${canRegen && !stream && html`<button class="btn-text sm" onClick=${() => regenerateBriefing(pid)}><${Icon} name="refresh" size=${15} />다시 요약</button>`}`
+        : html`<button class="brief-preview" onClick=${toggle} title="브리핑 펼치기">${preview}</button>`}
+      ${!stream && html`<button class="btn-text sm brief-toggle" onClick=${toggle} aria-expanded=${open}>
+        ${open ? '접기' : '펼치기'}<${Icon} name="down" size=${15} />
+      </button>`}
     </div>
-    ${body}
+    ${open && body}
   </section>`;
 }
 
