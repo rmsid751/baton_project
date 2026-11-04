@@ -10,7 +10,7 @@ import { makeHandoverPdf } from '../pdf.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function Modal({ children, size = 'md', onClose, label }) {
+function Modal({ children, size = 'md', onClose, label, className = '' }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape' && onClose) onClose(); };
     document.addEventListener('keydown', onKey);
@@ -21,7 +21,7 @@ function Modal({ children, size = 'md', onClose, label }) {
     };
   }, [onClose]);
   return html`<div class="overlay fade-in" onClick=${(e) => { if (e.target === e.currentTarget && onClose) onClose(); }}>
-    <div class=${`modal glass modal-${size} pop-in`} role="dialog" aria-modal="true" aria-label=${label}>
+    <div class=${`modal glass modal-${size} pop-in ${className}`} role="dialog" aria-modal="true" aria-label=${label}>
       ${onClose && html`<button class="icon-btn modal-x" onClick=${onClose} aria-label="닫기"><${Icon} name="x" /></button>`}
       ${children}
     </div>
@@ -292,7 +292,7 @@ function AutoWrite() {
 // ───────── 인계인수서 PDF ─────────
 const kb = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)}MB` : `${Math.round(n / 1024)}KB`);
 
-/** 만든 PDF 미리보기 + 다운로드 (입회요청 2단계와 PDF 보기 창이 함께 쓴다) */
+/** 만든 PDF 미리보기 (입회요청 2단계와 PDF 보기 창이 함께 쓴다) */
 function PdfPreview({ pdf, onRetry }) {
   if (pdf.phase === 'making') return html`<div class="pdf-making"><span class="spin"></span>인계인수서 PDF를 만드는 중…</div>`;
   if (pdf.phase === 'error') {
@@ -300,15 +300,22 @@ function PdfPreview({ pdf, onRetry }) {
       <button class="btn-text" onClick=${onRetry}><${Icon} name="refresh" size=${16} />다시 시도</button></div>`;
   }
   if (pdf.phase !== 'ready') return null;
-  return html`<div class="pdf-ready fade-in">
-    <div class="pdf-file">
-      <span class="pdf-ic">PDF</span>
-      <span class="pdf-meta"><strong>${pdf.filename}</strong><span class="small muted">${pdf.pages}쪽 · ${kb(pdf.size)}</span></span>
-      <span class="grow"></span>
-      <a class="btn-text" href=${pdf.url} download=${pdf.filename}><${Icon} name="file" size=${16} />다운로드</a>
-      <a class="btn-text" href=${pdf.url} target="_blank" rel="noopener">새 창으로 보기</a>
+  return html`<iframe class="pdf-frame fade-in" src=${pdf.url} title="인계인수서 PDF 미리보기"></iframe>`;
+}
+
+/** PDF 창 제목 줄: 왼쪽 제목, 오른쪽 파일 정보·다운로드·새 창으로 보기 */
+function PdfHead({ eyebrow, title, pdf }) {
+  return html`<div class="modal-head pdf-head">
+    <div class="pdf-head-title">
+      <p class="eyebrow">${eyebrow}</p>
+      <h2 class="h2">${title}</h2>
     </div>
-    <iframe class="pdf-frame" src=${pdf.url} title="인계인수서 PDF 미리보기"></iframe>
+    ${pdf.phase === 'ready' && html`<div class="pdf-file fade-in">
+      <span class="pdf-ic sm">PDF</span>
+      <span class="pdf-meta" title=${pdf.filename}><strong>${pdf.filename}</strong><span class="small muted">${pdf.pages}쪽 · ${kb(pdf.size)}</span></span>
+      <a class="btn-text sm" href=${pdf.url} download=${pdf.filename}><${Icon} name="file" size=${15} />다운로드</a>
+      <a class="btn-text sm" href=${pdf.url} target="_blank" rel="noopener">새 창으로 보기</a>
+    </div>`}
   </div>`;
 }
 
@@ -349,11 +356,8 @@ function PdfViewModal() {
     today: att.snapshot.today,
   });
   useEffect(() => { open(); }, []);
-  return html`<${Modal} size="xl" label="온나라 첨부 PDF" onClose=${closeModal}>
-    <div class="modal-head">
-      <p class="eyebrow">온나라 첨부 문서${att ? ` · ${fmtStamp(att.at)} 입회요청` : ''}</p>
-      <h2 class="h2">인계인수서 PDF</h2>
-    </div>
+  return html`<${Modal} size="xl" className="pdf-modal" label="온나라 첨부 PDF" onClose=${closeModal}>
+    <${PdfHead} eyebrow=${`온나라 첨부 문서${att ? ` · ${fmtStamp(att.at)} 입회요청` : ''}`} title="인계인수서 PDF" pdf=${pdf} />
     <div class="modal-body">
       ${att?.snapshot ? html`<${PdfPreview} pdf=${pdf} onRetry=${open} />` : html`<p class="muted">첨부 문서 내용을 찾을 수 없습니다.</p>`}
       <div class="modal-actions"><span class="grow"></span><button class="btn secondary" onClick=${closeModal}>닫기</button></div>
@@ -384,11 +388,8 @@ function SubmitModal() {
     toast(again ? '입회를 다시 요청했습니다 · 인계인수서 PDF를 첨부해 온나라로 보냈습니다' : '작성완료 · 인계인수서 PDF를 첨부해 온나라로 입회를 요청했습니다', 'ok');
   };
   if (step === 2) {
-    return html`<${Modal} size="xl" label="인계인수서 PDF 확인" onClose=${closeModal}>
-      <div class="modal-head">
-        <p class="eyebrow">${again ? '입회 재요청' : '작성완료 및 입회요청'} · 2/2</p>
-        <h2 class="h2">인계인수서 PDF 확인</h2>
-      </div>
+    return html`<${Modal} size="xl" className="pdf-modal" label="인계인수서 PDF 확인" onClose=${closeModal}>
+      <${PdfHead} eyebrow=${`${again ? '입회 재요청' : '작성완료 및 입회요청'} · 2/2`} title="인계인수서 PDF 확인" pdf=${pdf} />
       <div class="modal-body">
         <${PdfPreview} pdf=${pdf} onRetry=${makePdf} />
         <p class="note"><${Icon} name="info" size=${16} />이 PDF를 첨부해 온나라로 입회를 요청합니다. 내용을 확인한 뒤 [확인 및 입회요청]을 눌러 주세요.</p>
